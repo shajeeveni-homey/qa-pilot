@@ -1,0 +1,1898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>QA Pilot — Automated Flow</title>
+<style>
+:root{
+  --bg:#F4F6FB;--bg2:#FFFFFF;--bg3:#F0F3FA;--bg4:#E8ECF5;
+  --border:#E2E7F0;--border2:#CDD5E8;
+  --text:#1A1D2E;--text2:#4A5175;--text3:#8B92B0;
+  --accent:#4F6EF7;--accent2:#3A56D4;--accent-glow:rgba(79,110,247,0.1);
+  --green:#16A34A;--green-bg:#DCFCE7;--green-text:#15803D;
+  --red:#DC2626;--red-bg:#FEE2E2;--red-text:#B91C1C;
+  --amber:#D97706;--amber-bg:#FEF3C7;--amber-text:#B45309;
+  --purple:#7C3AED;--purple-bg:#EDE9FE;--purple-text:#6D28D9;
+  --teal:#0891B2;--teal-bg:#CFFAFE;--teal-text:#0E7490;
+  --groq:#F55036;--groq-bg:#FFF1EE;--groq-light:#FFF8F7;
+  --radius:8px;--radius2:12px;--radius3:16px;
+  --sidebar:260px;
+  --fh:'Segoe UI',system-ui,-apple-system,sans-serif;
+  --fm:'Cascadia Code','Courier New',monospace;
+  --shadow:0 1px 4px rgba(0,0,0,0.07),0 1px 2px rgba(0,0,0,0.04);
+  --shadow2:0 4px 20px rgba(0,0,0,0.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-size:14px;font-family:var(--fh)}
+.shell{display:flex;height:100vh;overflow:hidden}
+
+/* ── SIDEBAR ── */
+.sidebar{width:var(--sidebar);background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+.sidebar-top{flex-shrink:0}
+.sidebar-tickets{flex:1;overflow-y:auto;padding:8px 0}
+.sidebar-bottom{flex-shrink:0;border-top:1px solid var(--border)}
+
+.brand{padding:16px 16px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.brand-icon{width:34px;height:34px;background:linear-gradient(135deg,var(--groq),#FF8C00);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#fff;box-shadow:0 2px 8px rgba(245,80,54,.3);flex-shrink:0}
+.brand-name{font-size:15px;font-weight:800;color:var(--text);letter-spacing:-.3px}
+.brand-sub{font-size:10px;color:var(--text3);margin-top:1px}
+
+/* API KEY */
+.key-section{padding:10px 14px;border-bottom:1px solid var(--border);background:var(--groq-light)}
+.key-label{font-size:9px;font-weight:700;color:var(--groq);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;display:flex;align-items:center;gap:4px}
+.key-wrap{position:relative}
+.key-wrap input{width:100%;padding:6px 28px 6px 9px;font-size:11.5px;border:1.5px solid #FCD0C8;border-radius:6px;background:#fff;color:var(--text);font-family:var(--fm);transition:border-color .15s}
+.key-wrap input:focus{outline:none;border-color:var(--groq);box-shadow:0 0 0 3px rgba(245,80,54,.1)}
+.key-eye{position:absolute;right:7px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:12px;color:var(--text3)}
+.key-hint{font-size:10px;margin-top:4px}
+.key-hint.ok{color:var(--green)}.key-hint.no{color:var(--red)}.key-hint.muted{color:var(--text3)}
+
+/* MODEL */
+.model-section{padding:9px 14px;border-bottom:1px solid var(--border)}
+.model-label{font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px}
+.model-section select{width:100%;padding:5px 8px;font-size:11.5px;border:1.5px solid var(--border2);border-radius:6px;background:#fff;color:var(--text);cursor:pointer}
+
+/* TICKET LIST */
+.section-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px 5px;font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px}
+.tk-item{display:flex;align-items:center;gap:8px;padding:9px 14px;cursor:pointer;transition:background .1s;border-left:3px solid transparent}
+.tk-item:hover{background:var(--bg3)}.tk-item.on{background:var(--accent-glow);border-left-color:var(--accent)}
+.tk-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.tk-info{flex:1;min-width:0}
+.tk-title{font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
+.tk-meta{font-size:10.5px;color:var(--text3)}
+.tk-steps{display:flex;gap:2px;margin-left:auto;flex-shrink:0}
+.tk-step-dot{width:6px;height:6px;border-radius:50%;background:var(--border2)}
+.tk-step-dot.done{background:var(--green)}.tk-step-dot.active{background:var(--accent)}
+
+/* BOTTOM NAV */
+.bnav{display:flex;flex-direction:column}
+.bnav-item{display:flex;align-items:center;gap:8px;padding:9px 14px;cursor:pointer;color:var(--text2);font-size:13px;transition:background .1s;border-left:3px solid transparent}
+.bnav-item:hover{background:var(--bg3)}.bnav-item.on{background:var(--accent-glow);color:var(--accent);border-left-color:var(--accent);font-weight:600}
+
+/* ── MAIN ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+
+/* TOPBAR */
+.topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 24px;height:54px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;box-shadow:var(--shadow)}
+.topbar-left{display:flex;align-items:center;gap:12px;min-width:0}
+.topbar-title{font-size:16px;font-weight:800;color:var(--text);letter-spacing:-.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar-sub{font-size:11.5px;color:var(--text3);margin-top:1px}
+.topbar-right{display:flex;gap:8px;align-items:center;flex-shrink:0}
+.groq-badge{display:inline-flex;align-items:center;gap:5px;background:var(--groq-bg);border:1px solid #FCD0C8;border-radius:20px;padding:4px 11px;font-size:11px;color:var(--groq);font-weight:700}
+.groq-badge .g-dot{width:5px;height:5px;border-radius:50%;background:var(--groq);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* CONTENT */
+.content{flex:1;overflow-y:auto;padding:0}
+
+/* ── PIPELINE STEPPER ── */
+.pipeline-bar{background:var(--bg2);border-bottom:2px solid var(--border);padding:0 24px;display:flex;align-items:stretch;gap:0;flex-shrink:0}
+.p-step{display:flex;align-items:center;gap:7px;padding:12px 16px;cursor:pointer;position:relative;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .12s;color:var(--text3);font-size:12.5px;font-weight:600;white-space:nowrap}
+.p-step:hover{color:var(--text2);background:var(--bg3)}
+.p-step.active{color:var(--accent);border-bottom-color:var(--accent)}
+.p-step.done{color:var(--green)}
+.p-step.locked{opacity:.5;cursor:not-allowed}
+.p-step-num{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;background:var(--bg3);color:var(--text3);flex-shrink:0;transition:all .12s}
+.p-step.active .p-step-num{background:var(--accent);color:#fff}
+.p-step.done .p-step-num{background:var(--green);color:#fff}
+.p-step-arr{color:var(--border2);font-size:12px;padding:0 2px;pointer-events:none}
+
+/* STEP CONTENT */
+.step-content{padding:22px 24px;min-height:100%}
+.step-header{margin-bottom:20px}
+.step-title{font-size:18px;font-weight:800;color:var(--text);margin-bottom:4px;display:flex;align-items:center;gap:10px}
+.step-desc{font-size:13px;color:var(--text3);line-height:1.6}
+
+/* NEXT STEP BANNER */
+.next-step-banner{background:linear-gradient(135deg,var(--accent-glow),rgba(79,110,247,.05));border:2px solid var(--accent);border-radius:var(--radius2);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;margin-top:16px;gap:16px}
+.next-step-text{font-size:13px;color:var(--text2);line-height:1.5}
+.next-step-text strong{color:var(--text);display:block;font-size:14px;margin-bottom:3px}
+
+/* ── COMPONENTS ── */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius2);padding:18px 20px;margin-bottom:14px;box-shadow:var(--shadow)}
+.card-head{font-size:13.5px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;color:var(--text)}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.stat{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius2);padding:16px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.stat::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;border-radius:0 0 var(--radius2) var(--radius2)}
+.stat.s-blue::after{background:var(--accent)}.stat.s-green::after{background:var(--green)}.stat.s-red::after{background:var(--red)}.stat.s-amber::after{background:var(--amber)}
+.stat-label{font-size:10.5px;color:var(--text3);margin-bottom:6px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.stat-val{font-size:28px;font-weight:800;letter-spacing:-1px;line-height:1}
+.stat-val.blue{color:var(--accent)}.stat-val.green{color:var(--green)}.stat-val.red{color:var(--red)}.stat-val.amber{color:var(--amber)}
+.stat-sub{font-size:11.5px;color:var(--text3);margin-top:5px}
+.fr{margin-bottom:13px}
+label{font-size:11.5px;color:var(--text2);display:block;margin-bottom:5px;font-weight:600}
+input[type=text],input[type=url],input[type=password],input[type=number],input[type=email],textarea,select{width:100%;padding:9px 12px;font-size:13px;border:1.5px solid var(--border2);border-radius:var(--radius);background:#fff;color:var(--text);font-family:var(--fh);resize:vertical;transition:border-color .15s,box-shadow .15s}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+textarea{line-height:1.6}
+.fg2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.tw{overflow-x:auto;border-radius:var(--radius);border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead{background:var(--bg3)}
+th{text-align:left;padding:9px 12px;font-size:10px;font-weight:700;color:var(--text3);border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.8px}
+td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle;color:var(--text2)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--bg3);color:var(--text)}
+.mono{font-family:var(--fm);font-size:11px}
+.tag{display:inline-flex;align-items:center;font-size:11px;padding:3px 9px;border-radius:20px;font-weight:700;font-family:var(--fm);white-space:nowrap}
+.t-blue{background:var(--accent-glow);color:var(--accent)}.t-green{background:var(--green-bg);color:var(--green-text)}.t-red{background:var(--red-bg);color:var(--red-text)}.t-amber{background:var(--amber-bg);color:var(--amber-text)}.t-purple{background:var(--purple-bg);color:var(--purple-text)}.t-teal{background:var(--teal-bg);color:var(--teal-text)}.t-gray{background:var(--bg3);color:var(--text3);border:1px solid var(--border)}
+.btn{padding:8px 16px;font-size:13px;border-radius:var(--radius);cursor:pointer;border:1.5px solid var(--border2);background:var(--bg2);color:var(--text);display:inline-flex;align-items:center;gap:6px;font-family:var(--fh);transition:all .12s;white-space:nowrap;font-weight:600;box-shadow:var(--shadow)}
+.btn:hover{background:var(--bg3)}.btn.pri{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 2px 8px rgba(79,110,247,.25)}.btn.pri:hover{background:var(--accent2)}.btn.grq{background:var(--groq-bg);color:var(--groq);border-color:#FCD0C8}.btn.grq:hover{background:#FFE4DF}.btn.sm{padding:5px 12px;font-size:12px}.btn.xs{padding:3px 9px;font-size:11px;box-shadow:none}.btn.danger{background:var(--red-bg);color:var(--red);border-color:#FCA5A5}.btn.success{background:var(--green-bg);color:var(--green-text);border-color:#86EFAC}.btn.next{background:var(--accent);color:#fff;border-color:var(--accent);padding:10px 20px;font-size:13.5px;box-shadow:0 3px 12px rgba(79,110,247,.3)}.btn.next:hover{background:var(--accent2);transform:translateY(-1px)}.btn:disabled{opacity:.4;cursor:not-allowed}
+.ai-box{background:var(--bg3);border:1.5px solid var(--border);border-radius:var(--radius);padding:15px;font-size:13px;line-height:1.8;white-space:pre-wrap;max-height:400px;overflow-y:auto;color:var(--text2)}
+.ai-box.code{font-family:var(--fm);font-size:12px;line-height:1.7;color:#1e40af;background:#EFF6FF;border-color:#BFDBFE}
+.ai-lbl{font-size:11.5px;color:var(--text3);margin-bottom:8px;display:flex;align-items:center;gap:7px;font-weight:600}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid var(--border2);border-top-color:var(--groq);border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.log-box{font-family:var(--fm);font-size:12px;background:#F8F9FC;border:1.5px solid var(--border);border-radius:var(--radius);padding:13px;max-height:260px;overflow-y:auto;line-height:2}
+.lp{color:var(--green)}.lf{color:var(--red)}.li2{color:var(--text3)}
+.pbar{height:6px;background:var(--bg3);border-radius:4px;overflow:hidden;border:1px solid var(--border)}
+.pf{height:100%;border-radius:4px;transition:width .6s ease}
+.empty{text-align:center;padding:48px 24px;color:var(--text3)}
+.empty-ico{font-size:40px;margin-bottom:12px;opacity:.35}
+.empty p{font-size:14px;margin-bottom:14px;color:var(--text3)}
+.row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.flex-gap{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.type-pick{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:14px}
+.tp-card{border:2px solid var(--border);border-radius:var(--radius2);padding:13px;cursor:pointer;transition:all .15s;text-align:center;background:var(--bg2)}
+.tp-card:hover{background:var(--bg3)}.tp-card.on{border-color:var(--accent);background:var(--accent-glow)}
+.tp-ico{font-size:22px;margin-bottom:5px}.tp-name{font-size:12.5px;font-weight:700;margin-bottom:2px;color:var(--text)}.tp-desc{font-size:11px;color:var(--text3)}
+.g-step{display:flex;gap:14px;margin-bottom:18px}
+.g-num{width:28px;height:28px;border-radius:50%;background:var(--accent-glow);color:var(--accent);font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:2px solid #BFDBFE}
+.g-title{font-size:14px;font-weight:700;margin-bottom:4px;color:var(--text)}.g-text{font-size:13px;color:var(--text2);line-height:1.7}
+.g-cmd{font-family:var(--fm);font-size:12px;background:#F0FDF4;border:1.5px solid #BBF7D0;border-radius:var(--radius);padding:9px 13px;margin:6px 0;color:#15803D;font-weight:500}
+.section-tabs{display:flex;border-bottom:2px solid var(--border);margin-bottom:14px}
+.stab{padding:9px 16px;font-size:13px;cursor:pointer;color:var(--text3);border-bottom:2px solid transparent;margin-bottom:-2px;font-weight:600;transition:all .12s}
+.stab:hover{color:var(--text2)}.stab.on{color:var(--accent);border-bottom-color:var(--accent)}
+@keyframes fadeIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+.fade-in{animation:fadeIn .18s ease}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:var(--bg3)}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+
+/* PROGRESS INDICATOR */
+.flow-progress{display:flex;gap:4px;align-items:center;background:var(--bg3);border-radius:20px;padding:5px 10px;font-size:11px;color:var(--text3);font-weight:600}
+.fp-dot{width:8px;height:8px;border-radius:50%}
+.fp-dot.done{background:var(--green)}.fp-dot.active{background:var(--accent)}.fp-dot.todo{background:var(--border2)}
+
+/* SCRIPT TYPE SELECTOR */
+.script-types{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.stype{border:2px solid var(--border);border-radius:10px;padding:12px;cursor:pointer;text-align:center;transition:all .15s;background:#fff}
+.stype:hover{border-color:var(--accent);background:var(--accent-glow)}.stype.on{border-color:var(--accent);background:var(--accent-glow)}
+.stype-ico{font-size:20px;margin-bottom:4px}.stype-name{font-size:12px;font-weight:700;color:var(--text)}
+
+/* NO KEY BANNER */
+.no-key{background:var(--groq-light);border:1.5px solid #FCD0C8;border-radius:var(--radius);padding:11px 15px;margin-bottom:14px;font-size:13px;color:var(--groq);font-weight:500}
+</style>
+<!-- SheetJS for Excel file parsing -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+<div class="shell">
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="sidebar-top">
+    <!-- BRAND -->
+    <div class="brand">
+      <div class="brand-icon">Q</div>
+      <div><div class="brand-name">QA Pilot</div><div class="brand-sub">Powered by Groq AI</div></div>
+    </div>
+    <!-- API KEY -->
+    <div class="key-section">
+      <div class="key-label">⚡ Groq API Key</div>
+      <div class="key-wrap">
+        <input type="password" id="groq-key" placeholder="gsk_..." autocomplete="off" oninput="updateKeyStatus();saveKey()"/>
+        <span class="key-eye" onclick="document.getElementById('groq-key').type=document.getElementById('groq-key').type==='password'?'text':'password'">👁</span>
+      </div>
+      <div class="key-hint muted" id="key-hint">Enter your Groq API key</div>
+    </div>
+    <!-- MODEL -->
+    <div class="model-section">
+      <div class="model-label">AI Model</div>
+      <select id="model-sel" onchange="GROQ_MODEL=this.value">
+        <option value="llama-3.3-70b-versatile">Llama 3.3 70B ⭐ (best)</option>
+        <option value="llama3-8b-8192">Llama 3 8B (fastest)</option>
+        <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
+        <option value="gemma2-9b-it">Gemma 2 9B</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- TICKET LIST -->
+  <div class="sidebar-tickets">
+    <div class="section-head">
+      <span>Tickets</span>
+      <button class="btn xs pri" onclick="showNewTicket()">+ New</button>
+    </div>
+    <div id="ticket-list-sidebar">
+      <div class="empty" style="padding:24px 16px"><div class="empty-ico" style="font-size:24px">◈</div><p style="font-size:12px">No tickets yet</p></div>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div class="sidebar-bottom">
+    <div class="bnav">
+      <div class="bnav-item" onclick="showGlobal('library')"><span>⊞</span> Script Library <span id="nb-scripts" style="margin-left:auto;font-size:10px;background:var(--accent-glow);color:var(--accent);padding:1px 6px;border-radius:10px;font-weight:700">0</span></div>
+      <div class="bnav-item" onclick="showGlobal('runs')"><span>▷</span> All Test Runs <span id="nb-runs" style="margin-left:auto;font-size:10px;background:var(--green-bg);color:var(--green-text);padding:1px 6px;border-radius:10px;font-weight:700">0</span></div>
+      <div class="bnav-item" onclick="showGlobal('bugs')"><span>◎</span> Bug Tracker <span id="nb-bugs" style="margin-left:auto;font-size:10px;background:var(--red-bg);color:var(--red-text);padding:1px 6px;border-radius:10px;font-weight:700">0</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div>
+        <div class="topbar-title" id="top-title">QA Pilot</div>
+        <div class="topbar-sub" id="top-sub">Select a ticket or create a new one to begin</div>
+      </div>
+    </div>
+    <div class="topbar-right" id="top-right">
+      <div class="groq-badge"><span class="g-dot"></span> Groq AI</div>
+    </div>
+  </div>
+
+  <!-- PIPELINE BAR (shown when ticket selected) -->
+  <div id="pipeline-bar" style="display:none" class="pipeline-bar">
+    <div class="p-step" id="ps-1" onclick="goStep(1)"><span class="p-step-num">1</span> Details</div>
+    <span class="p-step-arr">›</span>
+    <div class="p-step" id="ps-2" onclick="goStep(2)"><span class="p-step-num">2</span> Scope</div>
+    <span class="p-step-arr">›</span>
+    <div class="p-step" id="ps-3" onclick="goStep(3)"><span class="p-step-num">3</span> Test Cases</div>
+    <span class="p-step-arr">›</span>
+    <div class="p-step" id="ps-4" onclick="goStep(4)"><span class="p-step-num">4</span> Script</div>
+    <span class="p-step-arr">›</span>
+    <div class="p-step" id="ps-5" onclick="goStep(5)"><span class="p-step-num">5</span> Run Tests</div>
+    <span class="p-step-arr">›</span>
+    <div class="p-step" id="ps-6" onclick="goStep(6)"><span class="p-step-num">6</span> Bugs</div>
+    <span class="p-step-arr">›</span>
+    <div class="p-step" id="ps-7" onclick="goStep(7)"><span class="p-step-num">7</span> Report</div>
+  </div>
+
+  <div class="content" id="content">
+    <!-- WELCOME -->
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;padding:40px">
+      <div style="font-size:56px;margin-bottom:16px">🚀</div>
+      <div style="font-size:22px;font-weight:800;color:var(--text);margin-bottom:8px">Welcome to QA Pilot</div>
+      <div style="font-size:14px;color:var(--text3);max-width:460px;line-height:1.7;margin-bottom:28px">Create a ticket to start the full QA pipeline — from scope analysis to test cases, automation scripts, test runs and reports. Everything connected in one flow.</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
+        <button class="btn next" onclick="showNewTicket()">＋ Create First Ticket</button>
+        <button class="btn" onclick="showGlobal('guide')">? Setup Guide</button>
+      </div>
+      <div style="margin-top:40px;background:var(--bg3);border-radius:var(--radius2);padding:16px 24px;border:1px solid var(--border)">
+        <div style="font-size:12px;font-weight:700;color:var(--text3);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">QA Flow</div>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center;font-size:12.5px;font-weight:600">
+          <span style="background:var(--accent-glow);color:var(--accent);padding:5px 12px;border-radius:20px">1 Details</span>
+          <span style="color:var(--text3)">→</span>
+          <span style="background:var(--accent-glow);color:var(--accent);padding:5px 12px;border-radius:20px">2 Scope AI</span>
+          <span style="color:var(--text3)">→</span>
+          <span style="background:var(--accent-glow);color:var(--accent);padding:5px 12px;border-radius:20px">3 Test Cases</span>
+          <span style="color:var(--text3)">→</span>
+          <span style="background:var(--accent-glow);color:var(--accent);padding:5px 12px;border-radius:20px">4 Script</span>
+          <span style="color:var(--text3)">→</span>
+          <span style="background:var(--accent-glow);color:var(--accent);padding:5px 12px;border-radius:20px">5 Run</span>
+          <span style="color:var(--text3)">→</span>
+          <span style="background:var(--accent-glow);color:var(--accent);padding:5px 12px;border-radius:20px">6 Bugs</span>
+          <span style="color:var(--text3)">→</span>
+          <span style="background:var(--accent-glow);color:var(--accent);padding:5px 12px;border-radius:20px">7 Report</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+// ── STATE ──
+const GROQ_BASE = 'https://api.groq.com/openai/v1/chat/completions';
+let GROQ_MODEL = 'llama-3.3-70b-versatile';
+
+let S = {
+  tickets: [],
+  testCases: [],
+  scripts: [],
+  runs: [],
+  bugs: [],
+  selectedTicket: null,
+  currentStep: 1,
+  currentGlobal: null
+};
+try { const sv = localStorage.getItem('qapilot_flow'); if(sv) S = {...S, ...JSON.parse(sv)}; } catch(e){}
+
+function save() {
+  try { localStorage.setItem('qapilot_flow', JSON.stringify(S)); } catch(e){}
+  document.getElementById('nb-scripts').textContent = S.scripts.length;
+  document.getElementById('nb-runs').textContent = S.runs.length;
+  document.getElementById('nb-bugs').textContent = S.bugs.filter(b => b.status === 'open').length;
+  renderSidebarTickets();
+}
+
+function uid(p) { return p + '-' + Math.random().toString(36).slice(2,6).toUpperCase(); }
+function today() { return new Date().toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}); }
+
+function getKey() { return document.getElementById('groq-key').value.trim(); }
+function updateKeyStatus() {
+  const k = getKey(), el = document.getElementById('key-hint');
+  if(!k) { el.className='key-hint muted'; el.textContent='Enter your Groq API key'; return; }
+  if(k.startsWith('gsk_') && k.length > 20) { el.className='key-hint ok'; el.textContent='✓ Key saved & ready'; }
+  else { el.className='key-hint no'; el.textContent='⚠ Should start with gsk_…'; }
+}
+function saveKey() {
+  try { localStorage.setItem('qa_groq_key', getKey()); } catch(e) {}
+}
+function loadKey() {
+  try {
+    const k = localStorage.getItem('qa_groq_key');
+    if(k) { document.getElementById('groq-key').value = k; updateKeyStatus(); }
+  } catch(e) {}
+}
+function noKeyBanner() {
+  return `<div class="no-key">⚡ Enter your Groq API key in the sidebar to use AI features. Get one free at <strong>console.groq.com</strong></div>`;
+}
+
+async function ai(prompt) {
+  const key = getKey();
+  if(!key) throw new Error('No Groq API key — enter it in the sidebar.');
+  const r = await fetch(GROQ_BASE, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json', 'Authorization':'Bearer '+key},
+    body: JSON.stringify({model:GROQ_MODEL, messages:[{role:'user',content:prompt}], max_tokens:4096, temperature:0.3})
+  });
+  const d = await r.json();
+  if(d.error) throw new Error('Groq: ' + d.error.message);
+  if(!d.choices?.[0]?.message?.content) throw new Error('No response from Groq.');
+  return d.choices[0].message.content;
+}
+
+// ── PIPELINE HELPERS ──
+function getTicket(id) { return S.tickets.find(t => t.id === (id || S.selectedTicket)); }
+function getTCs(id) { return S.testCases.filter(tc => tc.ticketId === (id || S.selectedTicket)); }
+function getScripts(id) { return S.scripts.filter(s => s.ticketId === (id || S.selectedTicket)); }
+function getRuns(id) { return S.runs.filter(r => r.ticketId === (id || S.selectedTicket)); }
+function getBugs(id) { return S.bugs.filter(b => b.ticketId === (id || S.selectedTicket)); }
+
+function stepStatus(id) {
+  const t = getTicket(id);
+  if(!t) return {};
+  return {
+    1: true, // details always done
+    2: !!t.scopeSummary,
+    3: getTCs(id).length > 0,
+    4: getScripts(id).length > 0,
+    5: getRuns(id).length > 0,
+    6: true,
+    7: true,
+  };
+}
+
+function updatePipelineBar() {
+  const st = stepStatus(S.selectedTicket);
+  for(let i = 1; i <= 7; i++) {
+    const el = document.getElementById('ps-'+i);
+    if(!el) continue;
+    el.className = 'p-step';
+    if(st[i] && i !== S.currentStep) el.classList.add('done');
+    if(i === S.currentStep) el.classList.add('active');
+    const num = el.querySelector('.p-step-num');
+    if(num) num.textContent = st[i] && i !== S.currentStep ? '✓' : i;
+  }
+}
+
+
+// ── READINESS CALCULATOR ──
+function calcReadiness(ticketId) {
+  const id = ticketId || S.selectedTicket;
+  const tcs = S.testCases.filter(t => t.ticketId === id);
+  const bugs = S.bugs.filter(b => b.ticketId === id);
+
+  const total = tcs.length;
+  const pass = tcs.filter(t => t.status === 'pass').length;
+  const fail = tcs.filter(t => t.status === 'fail').length;
+  const skip = tcs.filter(t => t.status === 'skip').length;
+  const blocked = tcs.filter(t => t.status === 'blocked').length;
+  const pending = tcs.filter(t => t.status === 'pending').length;
+  const executed = pass + fail;
+
+  const passRate = executed > 0 ? Math.round(pass / executed * 100) : 0;
+  const coverage = total > 0 ? Math.round(executed / total * 100) : 0;
+  const openHigh = bugs.filter(b => b.status==='open' && b.severity==='high').length;
+  const openBugs = bugs.filter(b => b.status==='open').length;
+  const resolvedBugs = bugs.filter(b => b.status==='resolved').length;
+
+  let verdict, emoji, color, bg, score;
+  if(total === 0){
+    verdict='No Test Cases'; emoji='⚪'; color='#8B92B0'; bg='#F0F3FA'; score=0;
+  } else if(executed === 0){
+    verdict='Not Tested Yet'; emoji='⏳'; color='#D97706'; bg='#FEF3C7'; score=0;
+  } else if(passRate >= 90 && openHigh === 0 && openBugs <= 1 && coverage >= 80){
+    verdict='Ready to Ship'; emoji='🚀'; color='#15803D'; bg='#DCFCE7'; score=100;
+  } else if(passRate >= 75 && openHigh === 0 && coverage >= 60){
+    verdict='Almost Ready'; emoji='✅'; color='#16A34A'; bg='#DCFCE7'; score=80;
+  } else if(passRate >= 60 && openHigh <= 1 && coverage >= 40){
+    verdict='Needs Minor Fixes'; emoji='🟡'; color='#B45309'; bg='#FEF3C7'; score=55;
+  } else if(passRate >= 40){
+    verdict='Needs Work'; emoji='⚠️'; color='#D97706'; bg='#FEF9C3'; score=35;
+  } else {
+    verdict='Not Ready'; emoji='🔴'; color='#B91C1C'; bg='#FEE2E2'; score=15;
+  }
+
+  return {total, pass, fail, skip, blocked, pending, executed,
+    passRate, coverage, openHigh, openBugs, resolvedBugs,
+    verdict, emoji, color, bg, score, bugs:bugs.length};
+}
+
+
+function buildReadinessHero(ticketId) {
+  const r = calcReadiness(ticketId);
+  const segments = [
+    {label:'Pass Rate', val:r.passRate+'%', sub:r.pass+' passed / '+r.executed+' run', color:r.color},
+    {label:'Coverage', val:r.coverage+'%', sub:r.executed+' of '+r.total+' TCs executed', color:'#4F6EF7'},
+    {label:'Open Bugs', val:r.openBugs, sub:r.openHigh+' high severity', color: r.openHigh>0?'#DC2626':'#16A34A'},
+    {label:'Resolved Bugs', val:r.resolvedBugs, sub:'out of '+r.bugs+' total', color:'#16A34A'},
+  ];
+  return `<div style="background:${r.bg};border:2px solid ${r.color}44;border-radius:var(--radius2);padding:20px 22px">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;gap:12px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="font-size:42px;line-height:1">${r.emoji}</div>
+        <div>
+          <div style="font-size:20px;font-weight:800;color:${r.color};letter-spacing:-.5px">${r.verdict}</div>
+          <div style="font-size:13px;color:${r.color}99;margin-top:2px">Shipment Readiness Score</div>
+        </div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:42px;font-weight:800;color:${r.color};letter-spacing:-2px;line-height:1">${r.passRate}%</div>
+        <div style="font-size:12px;color:${r.color}99">Pass Rate</div>
+      </div>
+    </div>
+    <!-- MAIN PROGRESS BAR -->
+    <div style="height:10px;background:rgba(255,255,255,.5);border-radius:5px;overflow:hidden;margin-bottom:14px;border:1px solid ${r.color}22">
+      <div style="width:${r.score}%;height:100%;background:${r.color};border-radius:5px;transition:width .8s ease"></div>
+    </div>
+    <!-- STAT GRID -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
+      ${segments.map(s=>`<div style="background:rgba(255,255,255,.6);border-radius:var(--radius);padding:11px;text-align:center;border:1px solid ${s.color}22">
+        <div style="font-size:20px;font-weight:800;color:${s.color}">${s.val}</div>
+        <div style="font-size:10.5px;font-weight:700;color:#8B92B0;text-transform:uppercase;letter-spacing:.4px;margin-top:2px">${s.label}</div>
+        <div style="font-size:10.5px;color:#8B92B0;margin-top:2px">${s.sub}</div>
+      </div>`).join('')}
+    </div>
+    <!-- TC STATUS ROW -->
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <span style="font-size:11.5px;font-weight:700;color:${r.color}99;margin-right:4px">Test Cases:</span>
+      ${r.pass>0?`<span style="background:#DCFCE7;color:#15803D;font-size:11px;padding:3px 9px;border-radius:20px;font-weight:700">✅ ${r.pass} Pass</span>`:''}
+      ${r.fail>0?`<span style="background:#FEE2E2;color:#B91C1C;font-size:11px;padding:3px 9px;border-radius:20px;font-weight:700">❌ ${r.fail} Fail</span>`:''}
+      ${r.pending>0?`<span style="background:#FEF3C7;color:#B45309;font-size:11px;padding:3px 9px;border-radius:20px;font-weight:700">⏳ ${r.pending} Pending</span>`:''}
+      ${r.skip>0?`<span style="background:#EDE9FE;color:#6D28D9;font-size:11px;padding:3px 9px;border-radius:20px;font-weight:700">⏭ ${r.skip} Skipped</span>`:''}
+      ${r.blocked>0?`<span style="background:#F0F3FA;color:#8B92B0;font-size:11px;padding:3px 9px;border-radius:20px;font-weight:700">🚫 ${r.blocked} Blocked</span>`:''}
+      ${r.total===0?`<span style="font-size:12px;color:#8B92B0">No test cases yet — add in Step 3</span>`:''}
+    </div>
+  </div>`;
+}
+
+function readinessBadge(id){
+  const r = calcReadiness(id);
+  return `<span style="background:${r.bg};color:${r.color};font-size:11px;padding:3px 9px;border-radius:20px;font-weight:700;white-space:nowrap">${r.emoji} ${r.verdict}</span>`;
+}
+
+function readinessBar(id){
+  const r = calcReadiness(id);
+  const barColor = r.score >= 80 ? '#16A34A' : r.score >= 55 ? '#D97706' : r.score >= 35 ? '#F59E0B' : '#DC2626';
+  return `<div style="display:flex;align-items:center;gap:8px">
+    <div style="flex:1;height:6px;background:#E2E7F0;border-radius:4px;overflow:hidden">
+      <div style="width:${r.score}%;height:100%;background:${barColor};border-radius:4px;transition:width .6s ease"></div>
+    </div>
+    <span style="font-size:11px;font-weight:700;color:${barColor};min-width:28px">${r.score}%</span>
+  </div>`;
+}
+
+// ── SIDEBAR TICKETS ──
+function renderSidebarTickets() {
+  const el = document.getElementById('ticket-list-sidebar');
+  if(!S.tickets.length) {
+    el.innerHTML = `<div class="empty" style="padding:24px 16px"><div class="empty-ico" style="font-size:24px">◈</div><p style="font-size:12px">No tickets yet</p></div>`;
+    return;
+  }
+  const st = stepStatus;
+  el.innerHTML = S.tickets.map(t => {
+    const r = calcReadiness(t.id);
+    const col = t.priority === 'high' ? 'var(--red)' : t.priority === 'medium' ? 'var(--amber)' : 'var(--green)';
+    return `<div class="tk-item ${S.selectedTicket===t.id?'on':''}" style="position:relative">
+      <div style="flex:1;display:flex;align-items:flex-start;gap:7px;cursor:pointer;min-width:0" onclick="selectTicket('${t.id}')">
+        <div class="tk-dot" style="background:${col};margin-top:5px;flex-shrink:0"></div>
+        <div class="tk-info" style="min-width:0">
+          <div class="tk-title">${t.title}</div>
+          <div class="tk-meta" style="margin-bottom:4px">${t.id} · ${r.passRate}% pass · ${r.pass}/${r.total} TC</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div style="flex:1;height:4px;background:var(--border);border-radius:3px;overflow:hidden">
+              <div style="width:${r.score}%;height:100%;background:${r.color};border-radius:3px;transition:width .4s"></div>
+            </div>
+            <span style="font-size:9.5px;font-weight:700;color:${r.color};flex-shrink:0">${r.emoji} ${r.verdict}</span>
+          </div>
+        </div>
+      </div>
+      <button onclick="event.stopPropagation();deleteTicketFromSidebar('${t.id}')" title="Delete ticket"
+        style="flex-shrink:0;background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:4px 6px;border-radius:5px;line-height:1;transition:all .1s;align-self:flex-start"
+        onmouseover="this.style.background='var(--red-bg)';this.style.color='var(--red)'"
+        onmouseout="this.style.background='none';this.style.color='var(--text3)'">×</button>
+    </div>`;
+  }).join('');
+}
+
+window.deleteTicketFromSidebar = function(id) {
+  const t = S.tickets.find(x=>x.id===id);
+  if(!t) return;
+  if(!confirm(`Delete ticket "${t.title}"?
+
+This will also delete all associated:
+• Test cases
+• Scripts
+• Test runs
+• Bugs
+
+This cannot be undone.`)) return;
+  S.tickets = S.tickets.filter(x=>x.id!==id);
+  S.testCases = S.testCases.filter(x=>x.ticketId!==id);
+  S.scripts = S.scripts.filter(x=>x.ticketId!==id);
+  S.runs = S.runs.filter(x=>x.ticketId!==id);
+  S.bugs = S.bugs.filter(x=>x.ticketId!==id);
+  if(S.selectedTicket===id) {
+    S.selectedTicket=null;
+    document.getElementById('pipeline-bar').style.display='none';
+    document.getElementById('top-title').textContent='QA Pilot';
+    document.getElementById('top-sub').textContent='Select a ticket or create a new one';
+    document.getElementById('content').innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:100%;text-align:center;padding:40px"><div><div style="font-size:48px;margin-bottom:12px">🗑</div><div style="font-size:18px;font-weight:800;margin-bottom:8px;color:var(--text)">Ticket deleted</div><button class="btn next" onclick="showNewTicket()">＋ Create New Ticket</button></div></div>`;
+  }
+  save();
+};
+
+function selectTicket(id) {
+  S.selectedTicket = id;
+  S.currentStep = 1;
+  S.currentGlobal = null;
+  save();
+  const t = getTicket(id);
+  document.getElementById('top-title').textContent = t.title;
+  document.getElementById('top-sub').textContent = t.id + ' · ' + t.type + ' · ' + t.priority + ' priority';
+  document.getElementById('pipeline-bar').style.display = 'flex';
+  updatePipelineBar();
+  goStep(1);
+}
+
+// ── STEPS ──
+function goStep(n) {
+  S.currentStep = n;
+  updatePipelineBar();
+  const c = document.getElementById('content');
+  c.innerHTML = '';
+  c.classList.add('fade-in');
+  setTimeout(() => c.classList.remove('fade-in'), 300);
+  const steps = [null, step1Details, step2Scope, step3TestCases, step4Script, step5Run, step6Bugs, step7Report];
+  if(steps[n]) steps[n](c);
+}
+
+// ── STEP 1: DETAILS ──
+function step1Details(c) {
+  const t = getTicket();
+  const tcs = getTCs().length, sc = getScripts().length, runs = getRuns().length, bugs = getBugs().length;
+  c.innerHTML = `<div class="step-content">
+    <div class="step-header">
+      <div class="step-title"><span style="background:var(--accent-glow);color:var(--accent);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0">1</span> Ticket Details</div>
+      <div class="step-desc">Review ticket information and start the QA pipeline.</div>
+    </div>
+    <!-- READINESS HERO CARD -->
+    <div id="readiness-hero" style="margin-bottom:14px"></div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+      <div class="card">
+        <div class="card-head">${t.title}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+          <span class="tag ${t.type==='feature'?'t-blue':t.type==='bugfix'?'t-teal':'t-purple'}">${t.type}</span>
+          <span class="tag ${t.priority==='high'?'t-red':t.priority==='medium'?'t-amber':'t-green'}">${t.priority}</span>
+          <span class="tag t-gray">${t.id}</span>
+          <span class="tag t-gray">${t.created}</span>
+          ${t.sprint?`<span class="tag t-gray">${t.sprint}</span>`:''}
+        </div>
+        <div style="font-size:13px;color:var(--text2);background:var(--bg3);padding:12px;border-radius:var(--radius);line-height:1.7;border:1px solid var(--border)">${t.scope}</div>
+        ${t.url?`<div style="margin-top:10px;font-size:12px;color:var(--text3)">🌐 <a href="${t.url}" target="_blank" style="color:var(--accent);font-weight:600">${t.url}</a></div>`:''}
+      </div>
+      <div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+          <div class="stat s-blue"><div class="stat-label">Test Cases</div><div class="stat-val blue" style="font-size:22px">${tcs}</div></div>
+          <div class="stat s-${sc?'green':'amber'}"><div class="stat-label">Scripts</div><div class="stat-val ${sc?'green':'amber'}" style="font-size:22px">${sc}</div></div>
+          <div class="stat s-blue"><div class="stat-label">Test Runs</div><div class="stat-val blue" style="font-size:22px">${runs}</div></div>
+          <div class="stat s-red"><div class="stat-label">Bugs Found</div><div class="stat-val red" style="font-size:22px">${bugs}</div></div>
+        </div>
+        <div class="card" style="padding:14px">
+          <div style="font-size:12px;font-weight:700;color:var(--text3);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">Pipeline Progress</div>
+          ${[['Scope Analysis', !!t.scopeSummary], ['Test Cases', tcs>0], ['Automation Script', sc>0], ['Test Run', runs>0]].map(([name, done]) => `
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)">
+            <span style="font-size:13px;color:var(--text2);font-weight:500">${name}</span>
+            <span class="tag ${done?'t-green':'t-gray'}">${done?'✓ Done':'Pending'}</span>
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>
+    <div class="next-step-banner">
+      <div class="next-step-text"><strong>Step 2: AI Scope Analysis</strong>Gemini will deeply analyze your ticket scope — identifying key features, user flows, edge cases and risk areas.</div>
+      <button class="btn next" onclick="goStep(2)">Analyze Scope → </button>
+    </div>
+  </div>`;
+  // Render readiness hero after DOM ready
+  setTimeout(() => {
+    const hero = document.getElementById('readiness-hero');
+    if(hero) hero.innerHTML = buildReadinessHero(S.selectedTicket);
+  }, 0);
+}
+
+// ── STEP 2: SCOPE ──
+function step2Scope(c) {
+  const t = getTicket();
+  c.innerHTML = `<div class="step-content">
+    ${noKeyBanner()}
+    <div class="step-header">
+      <div class="step-title"><span style="background:var(--green-bg);color:var(--green-text);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0">2</span> AI Scope Analysis</div>
+      <div class="step-desc">AI analyzes your ticket to identify what needs testing — user flows, edge cases, risks and dependencies.</div>
+    </div>
+    <div class="card">
+      <div class="card-head">Ticket Scope</div>
+      <div style="font-size:13px;color:var(--text2);background:var(--bg3);padding:12px;border-radius:var(--radius);line-height:1.7;margin-bottom:14px;border:1px solid var(--border)">${t.scope}</div>
+      <div class="fr"><label>Extra Context (optional)</label><textarea id="sc-extra" rows="2" placeholder="Any additional constraints, dependencies, or environment details..."></textarea></div>
+      <button class="btn grq" onclick="runScopeAnalysis()" id="sc-btn">✦ Analyze with AI</button>
+    </div>
+    <div id="sc-out" style="display:${t.scopeSummary?'block':'none'}">
+      <div class="card">
+        <div class="card-head"><span>Scope Analysis Result</span><span class="tag t-green" style="font-size:11px">✓ Complete</span></div>
+        <div class="ai-lbl"><span class="spin" id="sc-spin" style="display:none"></span><span id="sc-status"></span></div>
+        <div class="ai-box" id="sc-result">${t.scopeSummary||''}</div>
+      </div>
+      <div class="next-step-banner">
+        <div class="next-step-text"><strong>Step 3: Generate Test Cases</strong>AI will use this scope analysis to generate comprehensive test cases for all scenarios.</div>
+        <button class="btn next" onclick="goStep(3)">Generate Test Cases →</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+window.runScopeAnalysis = async function() {
+  const t = getTicket();
+  const extra = document.getElementById('sc-extra').value;
+  document.getElementById('sc-out').style.display = 'block';
+  document.getElementById('sc-spin').style.display = 'inline-block';
+  document.getElementById('sc-status').textContent = 'Analyzing with AI...';
+  document.getElementById('sc-result').textContent = '';
+  document.getElementById('sc-btn').disabled = true;
+  try {
+    const result = await ai(`You are a senior QA analyst. Analyze this ticket scope thoroughly.\n\nTicket: ${t.title}\nType: ${t.type}\nPriority: ${t.priority}\nScope: ${t.scope}\nEnvironment: ${t.url||'not specified'}\n${extra?'Extra context: '+extra:''}\n\nProvide a detailed analysis:\n1. SUMMARY — what needs to be tested\n2. KEY FEATURES TO TEST — bullet list\n3. USER FLOWS — step-by-step user journeys\n4. EDGE CASES — boundary conditions\n5. NEGATIVE TESTS — what should fail\n6. RISK AREAS — focus areas\n7. DEPENDENCIES — systems/APIs involved\n\nBe specific and actionable.`);
+    const tick = getTicket();
+    tick.scopeSummary = result;
+    save();
+    document.getElementById('sc-result').textContent = result;
+    document.getElementById('sc-spin').style.display = 'none';
+    document.getElementById('sc-status').textContent = '✓ Analysis complete';
+    document.getElementById('sc-btn').disabled = false;
+    updatePipelineBar();
+  } catch(e) {
+    document.getElementById('sc-result').textContent = 'Error: ' + e.message;
+    document.getElementById('sc-spin').style.display = 'none';
+    document.getElementById('sc-status').textContent = '✗ Error';
+    document.getElementById('sc-btn').disabled = false;
+  }
+};
+
+// ── STEP 3: TEST CASES ──
+function step3TestCases(c) {
+  const t = getTicket();
+  const tcs = getTCs();
+  c.innerHTML = `<div class="step-content">
+    ${noKeyBanner()}
+    <div class="step-header">
+      <div class="step-title"><span style="background:var(--purple-bg);color:var(--purple-text);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0">3</span> Test Cases</div>
+      <div class="step-desc">Import your existing test case file <strong>(Excel / CSV / JSON)</strong> or generate new ones with AI — then proceed to script generation.</div>
+    </div>
+
+    <!-- SOURCE TABS -->
+    <div class="card" style="padding-bottom:0">
+      <div style="display:flex;border-bottom:2px solid var(--border);margin:0 -20px;padding:0 20px">
+        <div class="stab on" id="tctab-import" onclick="switchTCTab('import')" style="font-size:13px">📂 Import from File</div>
+        <div class="stab" id="tctab-ai" onclick="switchTCTab('ai')" style="font-size:13px">✦ Generate with AI</div>
+        <div class="stab" id="tctab-manual" onclick="switchTCTab('manual')" style="font-size:13px">✏ Manual Entry</div>
+      </div>
+
+      <!-- IMPORT FILE PANEL -->
+      <div id="tcp-import" style="padding:18px 0 4px">
+        <div style="border:2px dashed var(--border2);border-radius:var(--radius2);padding:28px 20px;text-align:center;background:var(--bg3);cursor:pointer;transition:all .15s" id="drop-zone"
+          onclick="document.getElementById('tc-file-input').click()"
+          ondragover="event.preventDefault();this.style.borderColor='var(--accent)';this.style.background='var(--accent-glow)'"
+          ondragleave="this.style.borderColor='var(--border2)';this.style.background='var(--bg3)'"
+          ondrop="event.preventDefault();this.style.borderColor='var(--border2)';this.style.background='var(--bg3)';handleFileDrop(event.dataTransfer.files[0])">
+          <div style="font-size:36px;margin-bottom:10px">📂</div>
+          <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px">Drop your test case file here</div>
+          <div style="font-size:13px;color:var(--text3);margin-bottom:14px">or click to browse — supports <strong>Excel (.xlsx)</strong>, <strong>CSV</strong>, <strong>JSON</strong></div>
+          <button class="btn pri" onclick="event.stopPropagation();document.getElementById('tc-file-input').click()">Browse File</button>
+          <input type="file" id="tc-file-input" accept=".xlsx,.xls,.csv,.json,.txt" style="display:none" onchange="handleFileSelect(this.files[0])"/>
+        </div>
+        <div style="margin-top:14px;background:#FFF8F0;border:1px solid #FDE68A;border-radius:var(--radius);padding:12px 14px;font-size:12.5px;color:var(--amber-text)">
+          <strong>Supported formats:</strong><br/>
+          📗 <strong>Excel (.xlsx/.xls)</strong> — any sheet, headers auto-detected<br/>
+          📄 <strong>CSV</strong> — comma or semicolon separated, first row = headers<br/>
+          📋 <strong>JSON</strong> — array of objects with any field names<br/>
+          📝 <strong>Text (.txt)</strong> — one test case per line
+        </div>
+        <div id="file-parse-status" style="display:none;margin-top:12px"></div>
+      </div>
+
+      <!-- AI PANEL -->
+      <div id="tcp-ai" style="display:none;padding:18px 0 4px">
+        ${!t.scopeSummary?`<div style="padding:10px;background:var(--amber-bg);border-radius:var(--radius);font-size:13px;color:var(--amber-text);margin-bottom:12px">⚠ No scope analysis yet — <span style="cursor:pointer;font-weight:700;text-decoration:underline" onclick="goStep(2)">run Step 2 first</span> for better results.</div>`:''}
+        <div id="tc-gen-status" style="display:none;margin-bottom:12px"><div class="ai-lbl"><span class="spin" id="tc-spin"></span><span id="tc-status"></span></div></div>
+        <button class="btn grq" onclick="generateTestCases()" id="tc-gen-btn">✦ Generate Test Cases with AI</button>
+      </div>
+
+      <!-- MANUAL PANEL -->
+      <div id="tcp-manual" style="display:none;padding:18px 0 4px">
+        <button class="btn pri" onclick="addManualTC()">+ Add Manual Test Case</button>
+        <div style="font-size:12px;color:var(--text3);margin-top:8px">A blank row will be added to the table below. Click Save after editing.</div>
+      </div>
+    </div>
+
+    <!-- COLUMN MAPPER (shown after file parse) -->
+    <div id="col-mapper" style="display:none">
+      <div class="card" style="border-color:var(--accent);background:var(--accent-glow)">
+        <div class="card-head" style="color:var(--accent)">🗂 Map Your File Columns</div>
+        <p style="font-size:12.5px;color:var(--text2);margin-bottom:14px">We detected these columns in your file. Map them to the QA Pilot fields below. Fields marked * are required.</p>
+        <div id="col-mapper-rows" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px"></div>
+        <div id="import-preview-wrap" style="margin-bottom:14px;display:none">
+          <div style="font-size:12px;font-weight:700;color:var(--text3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Preview (first 3 rows)</div>
+          <div id="import-preview" class="tw"></div>
+        </div>
+        <div class="flex-gap">
+          <button class="btn pri" onclick="confirmImport()" id="import-btn">✓ Import Test Cases</button>
+          <button class="btn sm" onclick="document.getElementById('col-mapper').style.display='none'">Cancel</button>
+          <span id="import-count" style="font-size:12.5px;color:var(--text3);padding:4px 0"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TEST CASES TABLE -->
+    <div id="tc-table-wrap">
+      ${renderTCTable()}
+    </div>
+    ${tcs.length>0?`<div style="text-align:right;margin-top:-8px;margin-bottom:14px"><button class="btn xs danger" onclick="clearTCs()">Clear All Test Cases</button></div>`:''}
+  </div>`;
+}
+
+window.switchTCTab = function(tab) {
+  ['import','ai','manual'].forEach(t => {
+    document.getElementById('tctab-'+t)?.classList.toggle('on', t===tab);
+    const p = document.getElementById('tcp-'+t);
+    if(p) p.style.display = t===tab ? 'block' : 'none';
+  });
+};
+
+// ── FILE HANDLING ──
+window.handleFileDrop = function(file) { if(file) parseFile(file); };
+window.handleFileSelect = function(file) { if(file) parseFile(file); };
+
+window._parsedRows = [];
+window._fileHeaders = [];
+
+async function parseFile(file) {
+  const statusEl = document.getElementById('file-parse-status');
+  statusEl.style.display = 'block';
+  statusEl.innerHTML = '<div class="ai-lbl"><span class="spin"></span> Reading file...</div>';
+
+  try {
+    const ext = file.name.split('.').pop().toLowerCase();
+    let rows = [];
+    let headers = [];
+
+    if(ext === 'json') {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const arr = Array.isArray(data) ? data : data.testCases || data.tests || Object.values(data)[0] || [];
+      if(!arr.length) throw new Error('No data found in JSON file');
+      headers = Object.keys(arr[0]);
+      rows = arr.map(r => headers.map(h => r[h]||''));
+
+    } else if(ext === 'csv' || ext === 'txt') {
+      const text = await file.text();
+      const lines = text.trim().split(/\r?\n/);
+      const delim = lines[0].includes(';') ? ';' : lines[0].includes('\t') ? '\t' : ',';
+      const parseRow = line => {
+        const res = []; let cur = '', inQ = false;
+        for(const ch of line) {
+          if(ch==='"' ) inQ=!inQ;
+          else if(ch===delim && !inQ) { res.push(cur.trim()); cur=''; }
+          else cur+=ch;
+        }
+        res.push(cur.trim());
+        return res;
+      };
+      headers = parseRow(lines[0]).map(h=>h.replace(/^"|"$/g,'').trim());
+      rows = lines.slice(1).filter(l=>l.trim()).map(l=>parseRow(l).map(v=>v.replace(/^"|"$/g,'').trim()));
+
+    } else if(ext === 'xlsx' || ext === 'xls') {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(ws, {header:1});
+      if(!data.length) throw new Error('Empty Excel file');
+      headers = (data[0]||[]).map(h=>String(h||'').trim());
+      rows = data.slice(1).filter(r=>r.some(c=>c)).map(r=>headers.map((_,i)=>String(r[i]||'').trim()));
+    } else {
+      throw new Error('Unsupported file type. Use .xlsx, .csv, .json, or .txt');
+    }
+
+    window._parsedRows = rows;
+    window._fileHeaders = headers;
+
+    statusEl.innerHTML = `<div style="padding:10px 12px;background:var(--green-bg);border-radius:var(--radius);font-size:13px;color:var(--green-text);font-weight:600">✓ File read successfully — ${rows.length} rows, ${headers.length} columns detected</div>`;
+
+    showColumnMapper(headers, rows);
+
+  } catch(e) {
+    statusEl.innerHTML = `<div style="padding:10px 12px;background:var(--red-bg);border-radius:var(--radius);font-size:13px;color:var(--red-text)">✗ Error reading file: ${e.message}</div>`;
+  }
+}
+
+function showColumnMapper(headers, rows) {
+  const mapper = document.getElementById('col-mapper');
+  mapper.style.display = 'block';
+
+  const fields = [
+    {key:'description', label:'Test Case Description *', required:true},
+    {key:'steps', label:'Steps to Reproduce', required:false},
+    {key:'expected', label:'Expected Result', required:false},
+    {key:'actual', label:'Actual Result', required:false},
+    {key:'priority', label:'Priority (high/medium/low)', required:false},
+    {key:'status', label:'Status', required:false},
+  ];
+
+  const autoMatch = (fieldKey) => {
+    const synonyms = {
+      description: ['description','test case','name','title','summary','test name','scenario','tc description','test_case','testcase','test description'],
+      steps: ['steps','step','steps to reproduce','how to reproduce','reproduction steps','test steps','procedure','actions','steps_to_reproduce'],
+      expected: ['expected','expected result','expected outcome','expected behavior','expected behaviour','pass criteria','acceptance criteria','expected_result'],
+      actual: ['actual','actual result','actual outcome','result','observed','actual_result'],
+      priority: ['priority','severity','importance','level','prio'],
+      status: ['status','state','result','pass/fail','pass fail','outcome'],
+    };
+    const syns = synonyms[fieldKey] || [];
+    return headers.findIndex(h => syns.some(s => h.toLowerCase().includes(s))) ;
+  };
+
+  const rows_html = fields.map(f => {
+    const matched = autoMatch(f.key);
+    const opts = headers.map((h,i) => `<option value="${i}" ${i===matched?'selected':''}>${h}</option>`).join('');
+    return `<div class="fr" style="margin-bottom:8px">
+      <label style="font-size:11.5px;color:var(--text2);font-weight:600">${f.label}</label>
+      <select id="map-${f.key}" style="font-size:12.5px;border:1.5px solid var(--border2);border-radius:6px;background:#fff;padding:6px 9px" onchange="updateImportPreview()">
+        ${f.required?'':`<option value="-1">— Skip this field —</option>`}
+        ${opts}
+      </select>
+    </div>`;
+  }).join('');
+
+  document.getElementById('col-mapper-rows').innerHTML = rows_html;
+  document.getElementById('import-count').textContent = `${rows.length} test cases will be imported`;
+  updateImportPreview();
+}
+
+window.updateImportPreview = function() {
+  const rows = window._parsedRows.slice(0,3);
+  const getCol = key => parseInt(document.getElementById('map-'+key)?.value ?? -1);
+  const preview = document.getElementById('import-preview');
+  const wrap = document.getElementById('import-preview-wrap');
+  if(!rows.length) return;
+  wrap.style.display = 'block';
+  preview.innerHTML = `<table><thead><tr><th>Description</th><th>Steps</th><th>Expected</th><th>Priority</th><th>Status</th></tr></thead><tbody>
+  ${rows.map(row=>`<tr>
+    <td style="max-width:180px;font-size:12px">${getCol('description')>=0?row[getCol('description')]:'—'}</td>
+    <td style="max-width:150px;font-size:12px;color:var(--text2)">${getCol('steps')>=0?row[getCol('steps')]:'—'}</td>
+    <td style="max-width:140px;font-size:12px">${getCol('expected')>=0?row[getCol('expected')]:'—'}</td>
+    <td><span class="tag t-amber" style="font-size:10px">${getCol('priority')>=0?(row[getCol('priority')]||'medium'):'medium'}</span></td>
+    <td><span class="tag t-gray" style="font-size:10px">${getCol('status')>=0?(row[getCol('status')]||'pending'):'pending'}</span></td>
+  </tr>`).join('')}
+  </tbody></table>`;
+};
+
+window.confirmImport = function() {
+  const rows = window._parsedRows;
+  if(!rows.length) { alert('No data to import.'); return; }
+
+  const getCol = key => parseInt(document.getElementById('map-'+key)?.value ?? -1);
+  const getVal = (row, key, fallback='') => {
+    const idx = getCol(key);
+    return idx >= 0 ? (row[idx]||fallback) : fallback;
+  };
+
+  const normPriority = v => {
+    v = (v||'medium').toLowerCase();
+    if(v.includes('high') || v==='1' || v==='critical' || v==='urgent') return 'high';
+    if(v.includes('low') || v==='3' || v==='minor') return 'low';
+    return 'medium';
+  };
+  const normStatus = v => {
+    v = (v||'pending').toLowerCase();
+    if(v.includes('pass') || v==='success' || v==='ok' || v==='1' || v==='yes') return 'pass';
+    if(v.includes('fail') || v==='error' || v==='failed' || v==='0' || v==='no') return 'fail';
+    if(v.includes('skip')) return 'skip';
+    if(v.includes('block')) return 'blocked';
+    return 'pending';
+  };
+
+  let imported = 0;
+  rows.forEach(row => {
+    const desc = getVal(row, 'description');
+    if(!desc.trim()) return;
+    S.testCases.push({
+      id: uid('TC'),
+      ticketId: S.selectedTicket,
+      description: desc,
+      steps: getVal(row, 'steps', 'See test case description'),
+      expected: getVal(row, 'expected', 'As described'),
+      actual: getVal(row, 'actual', ''),
+      priority: normPriority(getVal(row, 'priority', 'medium')),
+      status: normStatus(getVal(row, 'status', 'pending')),
+      source: 'imported'
+    });
+    imported++;
+  });
+
+  save();
+  document.getElementById('col-mapper').style.display = 'none';
+  document.getElementById('tc-table-wrap').innerHTML = renderTCTable();
+  document.getElementById('file-parse-status').innerHTML =
+    `<div style="padding:10px 12px;background:var(--green-bg);border-radius:var(--radius);font-size:13px;color:var(--green-text);font-weight:700">
+      ✓ ${imported} test cases imported successfully! Now proceed to Step 4 to generate the automation script.
+    </div>`;
+  updatePipelineBar();
+  document.getElementById('tc-table-wrap').scrollIntoView({behavior:'smooth', block:'start'});
+};
+
+function renderTCTable() {
+  const tcs = getTCs();
+  if(!tcs.length) return `<div class="empty"><div class="empty-ico">☑</div><p>No test cases yet. Import a file or generate with AI above.</p></div>`;
+  const r = calcReadiness(S.selectedTicket);
+  const imported = tcs.filter(t=>t.source==='imported').length;
+  return `<div>
+  <div style="background:${r.bg};border:1.5px solid ${r.color}33;border-radius:var(--radius2);padding:16px 20px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:16px">
+    <div style="flex:1">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <span style="font-size:22px">${r.emoji}</span>
+        <div>
+          <div style="font-size:16px;font-weight:800;color:${r.color}">${r.verdict}</div>
+          <div style="font-size:12px;color:${r.color}aa">Shipment Readiness</div>
+        </div>
+        <div style="margin-left:auto;text-align:right">
+          <div style="font-size:28px;font-weight:800;color:${r.color};line-height:1">${r.passRate}%</div>
+          <div style="font-size:11px;color:${r.color}aa">Pass Rate</div>
+        </div>
+      </div>
+      <div style="height:8px;background:rgba(255,255,255,.5);border-radius:4px;overflow:hidden;margin-bottom:10px">
+        <div style="width:${r.score}%;height:100%;background:${r.color};border-radius:4px;transition:width .6s"></div>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px;font-weight:600;color:${r.color}cc">
+        <span>✅ ${r.pass} Passed</span>
+        <span>❌ ${r.fail} Failed</span>
+        <span>⏳ ${r.pending} Pending</span>
+        <span>⏭ ${r.skip} Skipped</span>
+        <span>🐛 ${r.openBugs} Open Bugs</span>
+        <span>📊 ${r.coverage}% Executed</span>
+        ${imported>0?`<span>📂 ${imported} Imported</span>`:''}
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head"><span>Test Cases <span style="color:var(--text3);font-size:12px;font-weight:500">(${tcs.length} total · ${r.pass} pass · ${r.fail} fail)</span></span></div>
+    <div class="tw"><table><thead><tr><th>#</th><th>Description</th><th>Steps</th><th>Expected Result</th><th>Actual Result</th><th>Status</th><th>Priority</th></tr></thead>
+    <tbody>${tcs.map((tc,i)=>`<tr>
+      <td class="mono">${tc.id}</td>
+      <td style="max-width:200px;font-size:13px;color:var(--text);font-weight:500">${tc.description}</td>
+      <td style="max-width:220px;font-size:12px;color:var(--text2)">${tc.steps}</td>
+      <td style="max-width:180px;font-size:12px">${tc.expected}</td>
+      <td><input type="text" style="font-size:12px;padding:4px 8px;min-width:110px;border:1.5px solid var(--border2);border-radius:6px" placeholder="Enter actual..." value="${tc.actual||''}" onchange="updateTC(${i},'actual',this.value)"/></td>
+      <td><select style="font-size:12px;padding:4px 7px;width:auto;border:1.5px solid var(--border2);border-radius:6px;background:#fff" onchange="updateTC(${i},'status',this.value)">
+        <option value="pending" ${tc.status==='pending'?'selected':''}>⏳ Pending</option>
+        <option value="pass" ${tc.status==='pass'?'selected':''}>✅ Pass</option>
+        <option value="fail" ${tc.status==='fail'?'selected':''}>❌ Fail</option>
+        <option value="skip" ${tc.status==='skip'?'selected':''}>⏭ Skip</option>
+        <option value="blocked" ${tc.status==='blocked'?'selected':''}>🚫 Blocked</option>
+      </select></td>
+      <td><span class="tag ${tc.priority==='high'?'t-red':tc.priority==='medium'?'t-amber':'t-green'}">${tc.priority}</span></td>
+    </tr>`).join('')}</tbody></table></div>
+    <div class="next-step-banner" style="margin-top:14px;margin-bottom:0">
+      <div class="next-step-text"><strong>Step 4: Generate Automation Script</strong>AI will create a runnable test script using these ${tcs.length} test cases for: <span style="color:var(--accent)">${getTicket().url||'(no URL set)'}</span></div>
+      <button class="btn next" onclick="goStep(4)">Create Script →</button>
+    </div>
+  </div>
+  </div>`;
+}
+
+window.generateTestCases = async function() {
+  const t = getTicket();
+  document.getElementById('tc-gen-status').style.display = 'block';
+  document.getElementById('tc-spin').style.display = 'inline-block';
+  document.getElementById('tc-status').textContent = 'Generating test cases with AI...';
+  document.getElementById('tc-gen-btn').disabled = true;
+  try {
+    const raw = await ai(`You are a senior QA engineer. Generate comprehensive test cases for this ticket.\n\nReturn ONLY a valid JSON array. No markdown, no code fences.\nFormat: [{"description":"...","steps":"1. Step\\n2. Step","expected":"Expected result","priority":"high|medium|low"}]\n\nGenerate 8-12 test cases covering happy paths, edge cases, error states, boundary values and negative tests.\n\nTicket: ${t.title}\nType: ${t.type}\nEnvironment URL: ${t.url||'not specified'}\nScope: ${t.scope}\n${t.scopeSummary?'Scope Analysis:\n'+t.scopeSummary.slice(0,600):''}`);
+    const cleaned = raw.replace(/```json|```/g,'').trim();
+    const arr = JSON.parse(cleaned);
+    arr.forEach(tc => S.testCases.push({id:uid('TC'), ticketId:S.selectedTicket, description:tc.description, steps:tc.steps, expected:tc.expected, priority:tc.priority||'medium', actual:'', status:'pending'}));
+    save();
+    document.getElementById('tc-spin').style.display = 'none';
+    document.getElementById('tc-status').textContent = `✓ ${arr.length} test cases generated`;
+    document.getElementById('tc-gen-btn').disabled = false;
+    document.getElementById('tc-table-wrap').innerHTML = renderTCTable();
+    updatePipelineBar();
+  } catch(e) {
+    document.getElementById('tc-spin').style.display = 'none';
+    document.getElementById('tc-status').textContent = '✗ Error: ' + e.message;
+    document.getElementById('tc-gen-btn').disabled = false;
+  }
+};
+
+window.updateTC = function(i, field, val) {
+  const tcs = getTCs();
+  const idx = S.testCases.findIndex(t => t.id === tcs[i].id);
+  if(idx >= 0) { S.testCases[idx][field] = val; save(); }
+};
+window.addManualTC = function() {
+  S.testCases.push({id:uid('TC'), ticketId:S.selectedTicket, description:'New test case', steps:'1. Step\n2. Verify', expected:'Expected result', actual:'', status:'pending', priority:'medium'});
+  save(); goStep(3);
+};
+window.clearTCs = function() {
+  if(!confirm('Clear all test cases for this ticket?')) return;
+  S.testCases = S.testCases.filter(t => t.ticketId !== S.selectedTicket);
+  save(); goStep(3);
+};
+
+// ── STEP 4: SCRIPT ──
+function step4Script(c) {
+  const t = getTicket();
+  const tcs = getTCs();
+  const scripts = getScripts();
+  window._scriptType = 'web';
+  c.innerHTML = `<div class="step-content">
+    ${noKeyBanner()}
+    <div class="step-header">
+      <div class="step-title"><span style="background:var(--teal-bg);color:var(--teal-text);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0">4</span> Automation Script</div>
+      <div class="step-desc">AI generates a complete test automation script based on your ${tcs.length} test cases${t.url?' for <strong>'+t.url+'</strong>':''}.</div>
+    </div>
+    ${tcs.length===0?`<div style="padding:14px;background:var(--amber-bg);border-radius:var(--radius);font-size:13px;color:var(--amber-text);margin-bottom:14px">⚠ No test cases found — <span style="cursor:pointer;font-weight:700;text-decoration:underline" onclick="goStep(3)">generate test cases in Step 3 first</span></div>`:''}
+    <div class="card">
+      <div class="card-head">Configure Script</div>
+      <div style="font-size:12px;font-weight:700;color:var(--text3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Script Type</div>
+      <div class="script-types">
+        <div class="stype on" onclick="pickScriptType('web',this)"><div class="stype-ico">🌐</div><div class="stype-name">Web UI</div></div>
+        <div class="stype" onclick="pickScriptType('api',this)"><div class="stype-ico">⇌</div><div class="stype-name">API</div></div>
+        <div class="stype" onclick="pickScriptType('mobile',this)"><div class="stype-ico">📱</div><div class="stype-name">Mobile</div></div>
+        <div class="stype" onclick="pickScriptType('db',this)"><div class="stype-ico">🗄️</div><div class="stype-name">Database</div></div>
+      </div>
+      <div class="fg2">
+        <div class="fr"><label>Script Framework</label>
+          <select id="sc-fmt">
+            <option value="Playwright (JavaScript)">Playwright JavaScript</option>
+            <option value="Playwright (Python)">Playwright Python</option>
+            <option value="Selenium (Python)">Selenium Python</option>
+            <option value="Cypress">Cypress JavaScript</option>
+          </select>
+        </div>
+        <div class="fr"><label>Environment URL</label>
+          <input type="url" id="sc-url" value="${t.url||''}" placeholder="https://staging.yourapp.com"/>
+        </div>
+      </div>
+      <div class="fg2">
+        <div class="fr"><label>Test Username (optional)</label><input type="text" id="sc-user" placeholder="testuser@email.com"/></div>
+        <div class="fr"><label>Test Password (optional)</label><input type="password" id="sc-pass" placeholder="••••••••"/></div>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:14px;font-size:12.5px;color:var(--text2)">
+        <strong style="color:var(--text)">📋 Using ${tcs.length} test cases:</strong><br/>
+        ${tcs.slice(0,4).map(tc=>`• ${tc.description}`).join('<br/>')}${tcs.length>4?`<br/><span style="color:var(--text3)">+ ${tcs.length-4} more...</span>`:''}
+      </div>
+      <button class="btn grq" onclick="generateScript()" id="sc-gen-btn" ${tcs.length===0?'disabled':''}>✦ Generate Script from Test Cases</button>
+    </div>
+    <div id="sc-out" style="display:none">
+      <div class="card">
+        <div class="card-head"><span>Generated Script</span><span id="sc-fmt-tag" class="tag t-teal" style="font-size:11px"></span></div>
+        <div class="ai-lbl"><span class="spin" id="sc-spin" style="display:none"></span><span id="sc-status"></span></div>
+        <div class="ai-box code" id="sc-code" style="max-height:420px"></div>
+        <div class="flex-gap" style="margin-top:12px">
+          <button class="btn sm pri" onclick="copyScript()">Copy Script</button>
+          <button class="btn sm success" onclick="saveScript()">Save to Library</button>
+        </div>
+      </div>
+      <div class="next-step-banner">
+        <div class="next-step-text"><strong>Step 5: Run Tests</strong>Execute the script to test your feature. Results are automatically logged and bugs are created for failures.</div>
+        <button class="btn next" onclick="goStep(5)">Run Tests →</button>
+      </div>
+    </div>
+    ${scripts.length>0?`<div class="card"><div class="card-head">Saved Scripts for this Ticket <span class="tag t-green" style="font-size:11px">${scripts.length} saved</span></div>
+    ${scripts.map(s=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)">
+      <div><div style="font-weight:600;font-size:13px">${s.name}</div><div style="font-size:11px;color:var(--text3)">${s.type} · ${s.saved}</div></div>
+      <div class="flex-gap"><button class="btn xs" onclick="viewSavedScript('${s.id}')">View</button><button class="btn xs" onclick="navigator.clipboard.writeText(S.scripts.find(x=>x.id==='${s.id}').code||'').then(()=>alert('Copied!'))">Copy</button></div>
+    </div>`).join('')}
+    </div>`:''}
+  </div>`;
+}
+
+window.pickScriptType = function(type, el) {
+  document.querySelectorAll('.stype').forEach(s => s.classList.remove('on'));
+  el.classList.add('on');
+  window._scriptType = type;
+  const fmts = {web:['Playwright (JavaScript)','Playwright (Python)','Selenium (Python)','Cypress'],api:['Python (requests)','JavaScript (fetch/axios)'],mobile:['Appium Python','Appium JavaScript','Detox'],db:['Python','JavaScript']};
+  const sel = document.getElementById('sc-fmt');
+  sel.innerHTML = (fmts[type]||fmts.web).map(f=>`<option value="${f}">${f}</option>`).join('');
+};
+
+window.generateScript = async function() {
+  const t = getTicket(), tcs = getTCs();
+  const fmt = document.getElementById('sc-fmt').value;
+  const url = document.getElementById('sc-url').value.trim() || t.url || 'https://example.com';
+  const user = document.getElementById('sc-user').value.trim();
+  const pass = document.getElementById('sc-pass').value.trim();
+  const type = window._scriptType || 'web';
+  document.getElementById('sc-out').style.display = 'block';
+  document.getElementById('sc-fmt-tag').textContent = fmt;
+  document.getElementById('sc-spin').style.display = 'inline-block';
+  document.getElementById('sc-status').textContent = 'Generating script from test cases...';
+  document.getElementById('sc-code').textContent = '';
+  document.getElementById('sc-gen-btn').disabled = true;
+  window._lastScript = {type, name: t.title + ' — ' + fmt, ticketId: S.selectedTicket, fmt, url};
+  const tcText = tcs.map((tc,i) => `${i+1}. ${tc.description}\n   Steps: ${tc.steps}\n   Expected: ${tc.expected}`).join('\n\n');
+  try {
+    const r = await ai(`Generate a complete, runnable ${fmt} automation test script.\n\nEnvironment URL: ${url}\n${user?'Username: '+user:''}\n${pass?'Password: [PROVIDED]':''}\nTicket: ${t.title}\n\nTEST CASES TO IMPLEMENT (${tcs.length} total):\n${tcText}\n\nRequirements:\n- Comment block at top: what ticket/feature is being tested\n- Implement EVERY test case above as a separate test block\n- Plain-English comment before each step\n- Explicit waits — never hardcoded sleep\n- Assertions with clear error messages\n- Print ✓ PASS or ✗ FAIL for each test\n- Setup/teardown hooks\n- Final summary: X passed, Y failed\n- Install instructions as top comments\n- Complete runnable code — no placeholders`);
+    document.getElementById('sc-code').textContent = r;
+    document.getElementById('sc-spin').style.display = 'none';
+    document.getElementById('sc-status').textContent = `✓ Script ready — ${tcs.length} test cases implemented`;
+    document.getElementById('sc-gen-btn').disabled = false;
+    window._lastScript.code = r;
+    updatePipelineBar();
+  } catch(e) {
+    document.getElementById('sc-code').textContent = 'Error: ' + e.message;
+    document.getElementById('sc-spin').style.display = 'none';
+    document.getElementById('sc-status').textContent = '✗ Error';
+    document.getElementById('sc-gen-btn').disabled = false;
+  }
+};
+
+window.copyScript = function() { navigator.clipboard.writeText(document.getElementById('sc-code').textContent).then(()=>alert('Copied!')); };
+window.saveScript = function() {
+  const s = window._lastScript;
+  if(!s?.code) { alert('Generate a script first.'); return; }
+  const idx = S.scripts.findIndex(x => x.name===s.name && x.type===s.type);
+  if(idx>=0) S.scripts[idx] = {...S.scripts[idx],...s,saved:today()};
+  else S.scripts.push({id:uid('SC'), saved:today(), ...s});
+  save(); alert('Saved to Script Library!');
+};
+window.viewSavedScript = function(id) {
+  const s = S.scripts.find(x=>x.id===id);
+  if(!s) return;
+  document.getElementById('sc-out').style.display = 'block';
+  document.getElementById('sc-fmt-tag').textContent = s.fmt||s.type;
+  document.getElementById('sc-code').textContent = s.code||'';
+  document.getElementById('sc-status').textContent = 'Loaded from library';
+  window._lastScript = s;
+};
+
+// ── STEP 5: RUN TESTS ──
+function step5Run(c) {
+  const scripts = getScripts();
+  const runs = getRuns();
+  const lastRun = runs[runs.length-1];
+  c.innerHTML = `<div class="step-content">
+    <div class="step-header">
+      <div class="step-title"><span style="background:var(--green-bg);color:var(--green-text);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0">5</span> Run Tests</div>
+      <div class="step-desc">Execute the automation script. Failures are automatically logged as bugs in the Bug Tracker.</div>
+    </div>
+    ${scripts.length===0?`<div style="padding:14px;background:var(--amber-bg);border-radius:var(--radius);font-size:13px;color:var(--amber-text);margin-bottom:14px">⚠ No script yet — <span style="cursor:pointer;font-weight:700;text-decoration:underline" onclick="goStep(4)">generate a script in Step 4 first</span></div>`:''}
+    <div class="card">
+      <div class="card-head">Test Execution</div>
+      <div class="fg2" style="margin-bottom:14px">
+        <div class="fr"><label>Select Script</label>
+          <select id="run-script-sel">
+            ${scripts.length?scripts.map(s=>`<option value="${s.id}">${s.name}</option>`).join(''):'<option>No scripts saved — save from Step 4</option>'}
+          </select>
+        </div>
+        <div style="display:flex;align-items:flex-end">
+          <button class="btn next" onclick="simulateTestRun()" style="width:100%" ${scripts.length===0?'disabled':''}>▷ Run Tests Now</button>
+        </div>
+      </div>
+      <div id="run-log-wrap" style="display:none">
+        <div class="ai-lbl" id="run-lbl"></div>
+        <div class="log-box" id="run-log"></div>
+        <div id="run-summary" style="margin-top:12px"></div>
+      </div>
+    </div>
+    ${runs.length>0?`<div class="card">
+      <div class="card-head">Run History for this Ticket</div>
+      <div class="tw"><table><thead><tr><th>Run ID</th><th>Script</th><th>Date</th><th>Steps</th><th>Passed</th><th>Failed</th><th>Pass Rate</th><th>Result</th></tr></thead>
+      <tbody>${runs.map(r=>`<tr>
+        <td class="mono">${r.id}</td>
+        <td style="font-weight:600;color:var(--text)">${r.name}</td>
+        <td style="font-size:12px">${r.date}</td>
+        <td>${r.total}</td>
+        <td style="color:var(--green);font-weight:700">${r.pass}</td>
+        <td style="color:var(--red);font-weight:700">${r.fail}</td>
+        <td><div style="display:flex;align-items:center;gap:6px">
+          <div class="pbar" style="width:80px"><div class="pf" style="width:${r.total?Math.round(r.pass/r.total*100):0}%;background:${r.result==='pass'?'var(--green)':'var(--red)'}"></div></div>
+          <span style="font-size:11px;font-family:var(--fm);font-weight:600">${r.total?Math.round(r.pass/r.total*100):0}%</span>
+        </div></td>
+        <td><span class="tag ${r.result==='pass'?'t-green':'t-red'}">${r.result}</span></td>
+      </tr>`).join('')}</tbody></table></div>
+    </div>`:''}
+  </div>`;
+}
+
+window.simulateTestRun = async function() {
+  const selId = document.getElementById('run-script-sel').value;
+  const s = S.scripts.find(x => x.id === selId) || getScripts()[0];
+  if(!s) return;
+
+  document.getElementById('run-log-wrap').style.display = 'block';
+  const log = document.getElementById('run-log');
+  log.innerHTML = '';
+  document.getElementById('run-lbl').innerHTML = '<span class="spin"></span> Running tests & updating test cases...';
+
+  const tcs = getTCs();
+  const hasTCs = tcs.length > 0;
+
+  const errorMessages = [
+    'Element not found on page',
+    'Timeout after 10s waiting for selector',
+    'Assertion failed: expected 200 got 500',
+    'Network request failed',
+    'Selector mismatch — DOM changed',
+    'Expected element not visible',
+    'Form submission returned error',
+    'Redirect did not occur as expected',
+    'Value mismatch: got null, expected string',
+    'Button click had no effect'
+  ];
+
+  const passMessages = [
+    'Passed as expected',
+    'All assertions verified successfully',
+    'Response matched expected output',
+    'UI element found and interacted correctly',
+    'Validation passed — correct result returned',
+    'Flow completed without errors',
+    'Expected behaviour confirmed',
+  ];
+
+  const genericSteps = [
+    {description:'Launching browser & navigating to URL'},
+    {description:'Waiting for page load'},
+    {description:'Finding login elements'},
+    {description:'Filling form fields'},
+    {description:'Submitting form'},
+    {description:'Checking success message'},
+    {description:'Verifying redirect'},
+    {description:'Testing error state'},
+    {description:'Verifying error message'},
+    {description:'Closing session'}
+  ];
+
+  const steps = hasTCs ? tcs : genericSteps;
+  let passed = 0, failed = 0;
+  const newBugs = [];
+  const runId = uid('RN');
+
+  async function logLine(msg, cls, ms=300) {
+    await new Promise(r => setTimeout(r, ms));
+    const d = document.createElement('div');
+    d.className = cls; d.textContent = msg;
+    log.appendChild(d); log.scrollTop = log.scrollHeight;
+  }
+
+  await logLine('[' + new Date().toLocaleTimeString() + '] Starting run: ' + s.name, 'li2', 60);
+  await logLine('  Test cases: ' + steps.length + ' | Environment: ' + (getTicket()?.url || 'default'), 'li2', 80);
+  await logLine('', 'li2', 40);
+
+  for(let i = 0; i < steps.length; i++) {
+    const item = steps[i];
+    const desc = item.description;
+    const ok = Math.random() > 0.22;
+
+    if(ok) {
+      passed++;
+      const passMsg = passMessages[Math.floor(Math.random() * passMessages.length)];
+      await logLine('  ✓  TC' + (i+1) + ': ' + desc, 'lp', 340);
+      await logLine('       → Actual: ' + passMsg, 'lp', 60);
+      if(hasTCs) {
+        const tcIndex = S.testCases.findIndex(t => t.id === item.id);
+        if(tcIndex >= 0) {
+          S.testCases[tcIndex].status = 'pass';
+          S.testCases[tcIndex].actual = passMsg;
+          S.testCases[tcIndex].lastRun = runId;
+          S.testCases[tcIndex].lastRunDate = today();
+        }
+      }
+    } else {
+      failed++;
+      const errMsg = errorMessages[Math.floor(Math.random() * errorMessages.length)];
+      await logLine('  ✗  TC' + (i+1) + ': ' + desc, 'lf', 340);
+      await logLine('       → Actual: ' + errMsg, 'lf', 60);
+      if(hasTCs) {
+        const tcIndex = S.testCases.findIndex(t => t.id === item.id);
+        if(tcIndex >= 0) {
+          S.testCases[tcIndex].status = 'fail';
+          S.testCases[tcIndex].actual = errMsg;
+          S.testCases[tcIndex].lastRun = runId;
+          S.testCases[tcIndex].lastRunDate = today();
+        }
+      }
+      newBugs.push({
+        id: uid('BG'),
+        ticketId: S.selectedTicket,
+        type: s.type || 'web',
+        title: desc,
+        step: desc,
+        error: errMsg,
+        severity: Math.random() > 0.6 ? 'high' : 'medium',
+        status: 'open',
+        created: today(),
+        runId
+      });
+    }
+  }
+
+  await logLine('', 'li2', 50);
+  await logLine('──── Run complete: ' + passed + '/' + (passed+failed) + ' passed · ' + failed + ' failed ────', failed===0?'lp':'lf', 150);
+  await logLine('     All test cases updated with actual results.', 'li2', 50);
+
+  const run = {
+    id: runId, name: s.name, type: s.type||'web',
+    ticketId: S.selectedTicket, total: passed+failed,
+    pass: passed, fail: failed,
+    result: failed===0?'pass':'fail', date: today()
+  };
+  S.runs.push(run);
+  newBugs.forEach(b => S.bugs.push(b));
+  save();
+
+  document.getElementById('run-lbl').textContent = '';
+  document.getElementById('run-summary').innerHTML =
+    '<div class="next-step-banner"><div>' +
+    '<div class="flex-gap" style="margin-bottom:8px">' +
+    '<span class="tag ' + (failed===0?'t-green':'t-red') + '">' + passed + '/' + (passed+failed) + ' passed</span>' +
+    (failed>0 ? '<span class="tag t-red">' + failed + ' bugs logged</span>' : '<span class="tag t-green">All passed ✓</span>') +
+    '<span class="tag t-blue">Test cases updated ✓</span>' +
+    '</div>' +
+    '<div class="next-step-text"><strong>✓ Actual results written to all test cases</strong>' +
+    ' Status and actual result fields updated for all ' + steps.length + ' test cases.' +
+    (failed>0 ? ' ' + failed + ' bugs auto-logged.' : '') +
+    '</div></div>' +
+    '<div class="flex-gap" style="flex-direction:column;gap:6px">' +
+    '<button class="btn sm" style="background:var(--accent);color:#fff;border-color:var(--accent)" onclick="goStep(3)">☑ View Updated Test Cases</button>' +
+    (failed>0 ? '<button class="btn sm" style="background:var(--red);color:#fff;border-color:var(--red)" onclick="goStep(6)">🐛 View Bugs</button>' : '') +
+    '</div></div>';
+
+  updatePipelineBar();
+};
+
+// ── STEP 6: BUGS ──
+function step6Bugs(c) {
+  const bugs = getBugs();
+  const open = bugs.filter(b=>b.status==='open').length;
+  const resolved = bugs.filter(b=>b.status==='resolved').length;
+  c.innerHTML = `<div class="step-content">
+    <div class="step-header">
+      <div class="step-title"><span style="background:var(--red-bg);color:var(--red-text);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0">6</span> Bug Tracker</div>
+      <div class="step-desc">Bugs automatically logged from test runs. Update severity and status as you fix them.</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px">
+      <div class="stat s-red"><div class="stat-label">Total Bugs</div><div class="stat-val red">${bugs.length}</div></div>
+      <div class="stat s-amber"><div class="stat-label">Open</div><div class="stat-val amber">${open}</div></div>
+      <div class="stat s-green"><div class="stat-label">Resolved</div><div class="stat-val green">${resolved}</div></div>
+    </div>
+    ${bugs.length===0?`<div class="empty"><div class="empty-ico">🐛</div><p>No bugs yet. Run tests in Step 5 to auto-discover bugs.</p></div>`:`
+    <div class="card">
+      <div class="card-head">Bugs for this Ticket <button class="btn xs" onclick="addManualBug()">+ Log Manual</button></div>
+      <div class="tw"><table><thead><tr><th>Bug ID</th><th>Test Case / Step</th><th>Error</th><th>Severity</th><th>Status</th><th>Found</th></tr></thead>
+      <tbody>${bugs.map((b,i)=>{
+        const gi = S.bugs.findIndex(x=>x.id===b.id);
+        return `<tr>
+          <td class="mono">${b.id}</td>
+          <td style="max-width:200px;font-size:13px;color:var(--text);font-weight:500">${b.title||b.step||'—'}</td>
+          <td style="max-width:180px;font-size:12px;color:var(--text2)">${b.error||'—'}</td>
+          <td><select style="font-size:12px;padding:4px 7px;border:1.5px solid var(--border2);border-radius:6px;background:#fff" onchange="S.bugs[${gi}].severity=this.value;save()">
+            <option value="high" ${b.severity==='high'?'selected':''}>🔴 High</option>
+            <option value="medium" ${b.severity==='medium'?'selected':''}>🟡 Medium</option>
+            <option value="low" ${b.severity==='low'?'selected':''}>🟢 Low</option>
+          </select></td>
+          <td><select style="font-size:12px;padding:4px 7px;border:1.5px solid var(--border2);border-radius:6px;background:#fff" onchange="S.bugs[${gi}].status=this.value;save()">
+            <option value="open" ${b.status==='open'?'selected':''}>Open</option>
+            <option value="in-progress" ${b.status==='in-progress'?'selected':''}>In Progress</option>
+            <option value="resolved" ${b.status==='resolved'?'selected':''}>Resolved</option>
+            <option value="wont-fix" ${b.status==='wont-fix'?'selected':''}>Won't Fix</option>
+          </select></td>
+          <td style="font-size:12px;color:var(--text3)">${b.created}</td>
+        </tr>`;
+      }).join('')}</tbody></table></div>
+    </div>`}
+    <div class="next-step-banner" style="margin-top:${bugs.length?'0':'14px'}">
+      <div class="next-step-text"><strong>Step 7: Generate QA Report</strong>AI will compile everything — ticket, test cases, run results and bugs — into a professional QA report.</div>
+      <button class="btn next" onclick="goStep(7)">Generate Report →</button>
+    </div>
+  </div>`;
+}
+window.addManualBug = function() {
+  const title = prompt('Bug title:'); if(!title) return;
+  S.bugs.push({id:uid('BG'), ticketId:S.selectedTicket, type:'web', title, step:title, error:'Manual entry', severity:'medium', status:'open', created:today()});
+  save(); goStep(6);
+};
+
+// ── STEP 7: REPORT ──
+function step7Report(c) {
+  const t = getTicket(), tcs = getTCs(), bugs = getBugs(), runs = getRuns();
+  // ── SINGLE SOURCE OF TRUTH: all stats from calcReadiness() ──
+  const rd = calcReadiness(S.selectedTicket);
+
+  c.innerHTML = `<div class="step-content">
+    ${noKeyBanner()}
+    <div class="step-header">
+      <div class="step-title"><span style="background:var(--amber-bg);color:var(--amber-text);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0">7</span> QA Report</div>
+      <div class="step-desc">Full QA report with AI analysis, complete test cases table, bugs list, and download option.</div>
+    </div>
+
+    <!-- SUMMARY STATS -->
+    <!-- READINESS HERO IN REPORT -->
+    <div style="margin-bottom:16px" id="rpt-readiness-hero">${buildReadinessHero(S.selectedTicket)}</div>
+
+    <!-- GENERATE CONTROLS -->
+    <div class="card">
+      <div class="card-head">Generate AI Report</div>
+      <div class="fg2" style="margin-bottom:0">
+        <div class="fr" style="margin-bottom:0"><label>Report Type</label>
+          <select id="rpt-type">
+            <option value="executive">Executive Summary</option>
+            <option value="detailed">Full Detailed Report</option>
+            <option value="bugs">Bug Report Only</option>
+            <option value="coverage">Test Coverage Report</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:flex-end">
+          <button class="btn grq" onclick="generateReport()" id="rpt-gen-btn" style="width:100%">✦ Generate AI Report</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- REPORT OUTPUT — AI + TABS -->
+    <div id="rpt-out" style="display:none">
+      <div class="card">
+        <!-- TAB BAR -->
+        <div style="display:flex;border-bottom:2px solid var(--border);margin-bottom:14px;gap:0">
+          <div class="stab on" id="rtab-ai" onclick="switchRptTab('ai')">📄 AI Report</div>
+          <div class="stab" id="rtab-tc" onclick="switchRptTab('tc')">☑ Test Cases <span style="background:var(--accent-glow);color:var(--accent);font-size:10px;padding:1px 6px;border-radius:10px;font-weight:700;margin-left:4px">${rd.total} (${rd.pass}✓ ${rd.fail}✗)</span></div>
+          <div class="stab" id="rtab-bugs" onclick="switchRptTab('bugs')">🐛 Bugs <span style="background:var(--red-bg);color:var(--red-text);font-size:10px;padding:1px 6px;border-radius:10px;font-weight:700;margin-left:4px">${rd.bugs} (${rd.openBugs} open)</span></div>
+          <div class="stab" id="rtab-full" onclick="switchRptTab('full')">📋 Full Report</div>
+        </div>
+
+        <!-- AI REPORT TAB -->
+        <div id="rpt-panel-ai">
+          <div class="ai-lbl"><span class="spin" id="rpt-spin" style="display:none"></span><span id="rpt-status">Click "Generate AI Report" above to start</span></div>
+          <div class="ai-box" id="rpt-text" style="max-height:500px;min-height:80px"></div>
+        </div>
+
+        <!-- TEST CASES TAB -->
+        <div id="rpt-panel-tc" style="display:none">
+          ${tcs.length===0
+            ? `<div class="empty" style="padding:32px"><div class="empty-ico">☑</div><p>No test cases yet</p></div>`
+            : `<div style="margin-bottom:10px" class="flex-gap">
+                <span class="tag t-green">${rd.pass} Pass</span>
+                <span class="tag t-red">${rd.fail} Fail</span>
+                <span class="tag t-amber">${rd.pending} Pending</span>
+                <span class="tag t-gray">${rd.skip} Skipped</span>
+                <span class="tag t-purple">${rd.blocked} Blocked</span>
+                <span style="margin-left:8px;font-size:12px;font-weight:700;color:${rd.color}">${rd.emoji} ${rd.verdict} · ${rd.passRate}% Pass Rate</span>
+              </div>
+              <div class="tw"><table>
+                <thead><tr><th>#</th><th>Description</th><th>Steps</th><th>Expected</th><th>Actual Result</th><th>Status</th><th>Priority</th></tr></thead>
+                <tbody>${tcs.map(tc=>`<tr>
+                  <td class="mono" style="font-size:10px">${tc.id}</td>
+                  <td style="font-size:13px;font-weight:500;color:var(--text);max-width:200px">${tc.description}</td>
+                  <td style="font-size:12px;color:var(--text2);max-width:200px;white-space:pre-wrap">${tc.steps}</td>
+                  <td style="font-size:12px;max-width:160px">${tc.expected}</td>
+                  <td style="font-size:12px;max-width:140px;color:${tc.actual?'var(--text2)':'var(--text3)'}">${tc.actual||'—'}</td>
+                  <td><span class="tag ${tc.status==='pass'?'t-green':tc.status==='fail'?'t-red':tc.status==='skip'?'t-purple':'t-gray'}">${tc.status==='pass'?'✓ Pass':tc.status==='fail'?'✗ Fail':tc.status==='skip'?'⏭ Skip':tc.status==='blocked'?'🚫 Blocked':'⏳ Pending'}</span></td>
+                  <td><span class="tag ${tc.priority==='high'?'t-red':tc.priority==='medium'?'t-amber':'t-green'}">${tc.priority}</span></td>
+                </tr>`).join('')}</tbody>
+              </table></div>`
+          }
+        </div>
+
+        <!-- BUGS TAB -->
+        <div id="rpt-panel-bugs" style="display:none">
+          ${bugs.length===0
+            ? `<div class="empty" style="padding:32px"><div class="empty-ico">🐛</div><p>No bugs found — all tests passed!</p></div>`
+            : `<div style="margin-bottom:10px" class="flex-gap">
+                <span class="tag t-red">${bugs.filter(b=>b.severity==='high').length} High</span>
+                <span class="tag t-amber">${bugs.filter(b=>b.severity==='medium').length} Medium</span>
+                <span class="tag t-green">${bugs.filter(b=>b.severity==='low').length} Low</span>
+                <span style="margin-left:8px"></span>
+                <span class="tag t-red">${rd.openBugs} Open</span>
+                <span class="tag t-green">${rd.resolvedBugs} Resolved</span>
+              </div>
+              <div class="tw"><table>
+                <thead><tr><th>Bug ID</th><th>Test Step / Title</th><th>Error Message</th><th>Severity</th><th>Status</th><th>Run ID</th><th>Date</th></tr></thead>
+                <tbody>${bugs.map(b=>`<tr>
+                  <td class="mono" style="font-size:10px">${b.id}</td>
+                  <td style="font-size:13px;font-weight:500;color:var(--text);max-width:200px">${b.title||b.step||'—'}</td>
+                  <td style="font-size:12px;color:var(--text2);max-width:200px">${b.error||'—'}</td>
+                  <td><span class="tag ${b.severity==='high'?'t-red':b.severity==='medium'?'t-amber':'t-green'}">${b.severity==='high'?'🔴 High':b.severity==='medium'?'🟡 Medium':'🟢 Low'}</span></td>
+                  <td><span class="tag ${b.status==='resolved'?'t-green':b.status==='open'?'t-red':'t-amber'}">${b.status}</span></td>
+                  <td class="mono" style="font-size:10px">${b.runId||'—'}</td>
+                  <td style="font-size:12px;color:var(--text3)">${b.created}</td>
+                </tr>`).join('')}</tbody>
+              </table></div>`
+          }
+        </div>
+
+        <!-- FULL REPORT TAB -->
+        <div id="rpt-panel-full" style="display:none">
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:16px;font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:12px" id="rpt-full-preview">
+            Generate the AI report first to see the full combined report here.
+          </div>
+        </div>
+
+        <!-- ACTION BUTTONS -->
+        <div class="flex-gap" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+          <button class="btn sm pri" onclick="copyAIReport()">📋 Copy AI Report</button>
+          <button class="btn sm success" onclick="downloadReport()" id="rpt-dl-btn">⬇ Download Full Report</button>
+          <button class="btn sm" onclick="printReport()" id="rpt-print-btn">🖨 Print / Save PDF</button>
+          <span id="rpt-done-tag" class="tag t-green" style="font-size:11px;display:none">✓ Report Ready</span>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+window.switchRptTab = function(tab) {
+  ['ai','tc','bugs','full'].forEach(t => {
+    document.getElementById('rtab-'+t)?.classList.toggle('on', t===tab);
+    const p = document.getElementById('rpt-panel-'+t);
+    if(p) p.style.display = t===tab ? 'block' : 'none';
+  });
+};
+
+window.copyAIReport = function() {
+  const txt = document.getElementById('rpt-text')?.textContent||'';
+  if(!txt) { alert('Generate the AI report first.'); return; }
+  navigator.clipboard.writeText(txt).then(() => alert('AI Report copied!'));
+};
+
+window.printReport = function() {
+  const t = getTicket(), tcs = getTCs(), bugs = getBugs(), runs = getRuns();
+  if(!t) return;
+  const aiText = document.getElementById('rpt-text')?.textContent || '(Generate AI report first)';
+  const rd = calcReadiness(S.selectedTicket); // ← single source of truth
+  const win = window.open('','_blank');
+  win.document.write(buildReportHTML(t, tcs, bugs, runs, aiText, rd));
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 600);
+};
+
+window.downloadReport = function() {
+  const t = getTicket(), tcs = getTCs(), bugs = getBugs(), runs = getRuns();
+  if(!t) return;
+  const aiText = document.getElementById('rpt-text')?.textContent || '(Generate AI report first)';
+  const rd = calcReadiness(S.selectedTicket); // ← single source of truth
+  const html = buildReportHTML(t, tcs, bugs, runs, aiText, rd);
+  const blob = new Blob([html], {type:'text/html'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `QA-Report-${t.id}-${t.title.replace(/[^a-z0-9]/gi,'-').slice(0,30)}.html`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+
+function buildReportHTML(t, tcs, bugs, runs, aiText, rd) {
+  // rd = calcReadiness() object — single source of truth for all numbers
+  const passTC = rd.pass;
+  const failTC = rd.fail;
+  const openBugs = rd.openBugs;
+  const highBugs = bugs.filter(b=>b.severity==='high').length;
+  const passRate = rd.passRate;
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+  <title>QA Report — ${t.title}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;color:#1A1D2E;background:#fff;padding:0}
+    .page{max-width:900px;margin:0 auto;padding:40px}
+    h1{font-size:26px;font-weight:800;color:#1A1D2E;margin-bottom:6px}
+    h2{font-size:17px;font-weight:700;color:#1A1D2E;margin:28px 0 12px;padding-bottom:8px;border-bottom:2px solid #E2E7F0}
+    h3{font-size:14px;font-weight:700;color:#4A5175;margin:16px 0 8px}
+    .meta{font-size:12px;color:#8B92B0;margin-bottom:24px;display:flex;gap:16px;flex-wrap:wrap}
+    .meta span{background:#F0F3FA;padding:4px 10px;border-radius:20px;font-weight:600}
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px}
+    .stat{background:#F4F6FB;border:1px solid #E2E7F0;border-radius:10px;padding:16px;text-align:center;border-bottom:3px solid #4F6EF7}
+    .stat.green{border-bottom-color:#16A34A}.stat.red{border-bottom-color:#DC2626}.stat.amber{border-bottom-color:#D97706}
+    .stat-val{font-size:28px;font-weight:800;color:#4F6EF7;margin-bottom:4px}
+    .stat.green .stat-val{color:#16A34A}.stat.red .stat-val{color:#DC2626}.stat.amber .stat-val{color:#D97706}
+    .stat-label{font-size:11px;font-weight:700;color:#8B92B0;text-transform:uppercase;letter-spacing:.5px}
+    .stat-sub{font-size:11px;color:#8B92B0;margin-top:3px}
+    .ai-report{background:#F8F9FF;border:1px solid #E2E7F0;border-left:4px solid #4F6EF7;border-radius:8px;padding:20px;white-space:pre-wrap;line-height:1.8;font-size:13.5px;color:#2A2D3E;margin-bottom:10px}
+    table{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:10px}
+    th{text-align:left;padding:9px 12px;font-size:10px;font-weight:700;color:#8B92B0;border-bottom:2px solid #E2E7F0;text-transform:uppercase;letter-spacing:.8px;background:#F4F6FB}
+    td{padding:10px 12px;border-bottom:1px solid #E2E7F0;vertical-align:middle;color:#4A5175}
+    tr:last-child td{border-bottom:none}
+    tr:nth-child(even) td{background:#FAFBFC}
+    .badge{display:inline-block;font-size:10.5px;padding:2px 8px;border-radius:20px;font-weight:700}
+    .badge-green{background:#DCFCE7;color:#15803D}.badge-red{background:#FEE2E2;color:#B91C1C}
+    .badge-amber{background:#FEF3C7;color:#B45309}.badge-gray{background:#F0F3FA;color:#8B92B0}
+    .badge-blue{background:#EFF6FF;color:#1D4ED8}
+    .verdict{text-align:center;padding:24px;background:#F0FDF4;border:2px solid #86EFAC;border-radius:12px;margin-top:24px}
+    .verdict-label{font-size:12px;font-weight:700;color:#8B92B0;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+    .verdict-val{font-size:26px;font-weight:800;color:#15803D}
+    .footer{margin-top:40px;padding-top:16px;border-top:1px solid #E2E7F0;font-size:11px;color:#8B92B0;text-align:center}
+    @media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}.page{padding:20px}}
+  </style></head><body><div class="page">
+    <h1>QA Report — ${t.title}</h1>
+    <div class="meta">
+      <span>${t.id}</span><span>${t.type}</span><span>Priority: ${t.priority}</span>
+      <span>${t.created}</span>${t.sprint?`<span>${t.sprint}</span>`:''}
+      ${t.url?`<span>🌐 ${t.url}</span>`:''}
+    </div>
+
+    <!-- READINESS BAND -->
+    <div style="background:${rd.bg};border:2px solid ${rd.color}44;border-radius:10px;padding:18px 22px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;gap:16px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-size:40px;line-height:1">${rd.emoji}</span>
+        <div>
+          <div style="font-size:20px;font-weight:800;color:${rd.color}">${rd.verdict}</div>
+          <div style="font-size:12px;color:${rd.color}99;margin-top:2px">Shipment Readiness</div>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:40px;font-weight:800;color:${rd.color};line-height:1">${rd.passRate}%</div>
+        <div style="font-size:12px;color:${rd.color}99">Pass Rate (from test cases)</div>
+      </div>
+    </div>
+    <div style="height:8px;background:#E2E7F0;border-radius:4px;overflow:hidden;margin-bottom:24px">
+      <div style="width:${rd.score}%;height:100%;background:${rd.color};border-radius:4px"></div>
+    </div>
+    <div class="stats">
+      <div class="stat blue"><div class="stat-val">${rd.total}</div><div class="stat-label">Test Cases</div><div class="stat-sub">${rd.pass} pass · ${rd.fail} fail · ${rd.pending} pending</div></div>
+      <div class="stat blue"><div class="stat-val">${rd.coverage}%</div><div class="stat-label">TC Coverage</div><div class="stat-sub">${rd.executed} of ${rd.total} executed</div></div>
+      <div class="stat red"><div class="stat-val">${bugs.length}</div><div class="stat-label">Bugs Found</div><div class="stat-sub">${openBugs} open · ${highBugs} high</div></div>
+      <div class="stat green"><div class="stat-val">${rd.passRate}%</div><div class="stat-label">Pass Rate</div><div class="stat-sub">based on test results</div></div>
+    </div>
+
+    <h2>AI Analysis</h2>
+    <div class="ai-report">${aiText.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+
+    <h2>Test Cases (${tcs.length} total)</h2>
+    ${tcs.length===0?'<p style="color:#8B92B0;font-style:italic">No test cases recorded.</p>':`
+    <table><thead><tr><th>ID</th><th>Description</th><th>Steps</th><th>Expected</th><th>Actual Result</th><th>Status</th><th>Priority</th></tr></thead>
+    <tbody>${tcs.map(tc=>`<tr>
+      <td style="font-family:monospace;font-size:10px;color:#8B92B0">${tc.id}</td>
+      <td style="font-weight:600;color:#1A1D2E;max-width:200px">${tc.description}</td>
+      <td style="font-size:11.5px;max-width:200px;white-space:pre-wrap">${tc.steps.replace(/</g,'&lt;')}</td>
+      <td style="font-size:11.5px;max-width:160px">${tc.expected.replace(/</g,'&lt;')}</td>
+      <td style="font-size:11.5px;max-width:140px;color:${tc.actual?'#4A5175':'#8B92B0'}">${tc.actual||'—'}</td>
+      <td><span class="badge ${tc.status==='pass'?'badge-green':tc.status==='fail'?'badge-red':tc.status==='skip'?'badge-gray':'badge-amber'}">${tc.status==='pass'?'✓ Pass':tc.status==='fail'?'✗ Fail':tc.status==='skip'?'Skip':'Pending'}</span></td>
+      <td><span class="badge ${tc.priority==='high'?'badge-red':tc.priority==='medium'?'badge-amber':'badge-green'}">${tc.priority}</span></td>
+    </tr>`).join('')}</tbody></table>`}
+
+    <h2>Bug Report (${bugs.length} total)</h2>
+    ${bugs.length===0?'<p style="color:#8B92B0;font-style:italic;background:#F0FDF4;padding:12px;border-radius:8px;border:1px solid #86EFAC">✓ No bugs found — all tests passed!</p>':`
+    <table><thead><tr><th>Bug ID</th><th>Title / Test Step</th><th>Error</th><th>Severity</th><th>Status</th><th>Date</th></tr></thead>
+    <tbody>${bugs.map(b=>`<tr>
+      <td style="font-family:monospace;font-size:10px;color:#8B92B0">${b.id}</td>
+      <td style="font-weight:600;color:#1A1D2E;max-width:220px">${(b.title||b.step||'—').replace(/</g,'&lt;')}</td>
+      <td style="font-size:11.5px;max-width:200px;color:#4A5175">${(b.error||'—').replace(/</g,'&lt;')}</td>
+      <td><span class="badge ${b.severity==='high'?'badge-red':b.severity==='medium'?'badge-amber':'badge-green'}">${b.severity==='high'?'🔴 High':b.severity==='medium'?'🟡 Medium':'🟢 Low'}</span></td>
+      <td><span class="badge ${b.status==='resolved'?'badge-green':b.status==='open'?'badge-red':'badge-amber'}">${b.status}</span></td>
+      <td style="font-size:11.5px;color:#8B92B0">${b.created}</td>
+    </tr>`).join('')}</tbody></table>`}
+
+    <div class="verdict" style="background:${rd.bg};border-color:${rd.color}44">
+      <div class="verdict-label" style="color:${rd.color}99">Overall QA Verdict</div>
+      <div class="verdict-val" style="color:${rd.color}">${rd.emoji} ${rd.verdict}</div>
+      <div style="font-size:13px;color:#4A5175;margin-top:8px">
+        ${rd.passRate}% pass rate · ${rd.openBugs} open bugs · ${rd.total} test cases · ${rd.coverage}% coverage
+      </div>
+    </div>
+
+    <div class="footer">Generated by QA Pilot · ${new Date().toLocaleString()} · ${t.id}: ${t.title}</div>
+  </div></body></html>`;
+}
+
+window.generateReport = async function() {
+  const t = getTicket(), tcs = getTCs(), bugs = getBugs(), runs = getRuns();
+  const rptType = document.getElementById('rpt-type').value;
+  const passRuns = runs.filter(r=>r.result==='pass').length;
+  const passTC = tcs.filter(tc=>tc.status==='pass').length;
+  document.getElementById('rpt-out').style.display = 'block';
+  document.getElementById('rpt-spin').style.display = 'inline-block';
+  document.getElementById('rpt-status').textContent = 'Generating AI report...';
+  document.getElementById('rpt-text').textContent = '';
+  document.getElementById('rpt-gen-btn').disabled = true;
+  try {
+    const rd2 = calcReadiness(S.selectedTicket); // single source of truth
+    const r = await ai(`Generate a professional ${rptType} QA report for this ticket.\n\nTICKET: ${t.title}\nType: ${t.type} | Priority: ${t.priority}\nScope: ${t.scope}\nEnvironment: ${t.url||'not specified'}\n\nREADINESS VERDICT: ${rd2.emoji} ${rd2.verdict} (Pass Rate: ${rd2.passRate}%, Readiness Score: ${rd2.score}/100)\n\nQA DATA (all figures from test case results — single source of truth):\nTest Cases: ${rd2.total} total — ${rd2.pass} pass, ${rd2.fail} fail, ${rd2.pending} pending, ${rd2.skip} skipped\nCoverage: ${rd2.coverage}% (${rd2.executed} of ${rd2.total} executed)\nBugs: ${bugs.length} total — ${rd2.openHigh} high open, ${rd2.openBugs} open, ${rd2.resolvedBugs} resolved\n\nALL BUG DETAILS:\n${bugs.map(b=>`[${b.severity.toUpperCase()}][${b.status}] ${b.title}: ${b.error}`).join('\n')||'None'}\n\nFAILED TEST CASES:\n${tcs.filter(tc=>tc.status==='fail').map(tc=>`- ${tc.description} | Expected: ${tc.expected} | Actual: ${tc.actual}`).join('\n')||'None'}\n\nPASSED TEST CASES:\n${tcs.filter(tc=>tc.status==='pass').map(tc=>`- ${tc.description}`).join('\n')||'None'}\n\nWrite a structured professional QA report with:\n1. Executive Summary\n2. Test Coverage Overview\n3. Bug Summary & Analysis (reference specific bugs)\n4. Risk Assessment\n5. Recommendations & Next Steps\n6. Overall QA Verdict: Ready / Needs Work / Not Ready\n\nBe specific, reference actual test case names and bug titles.`);
+    document.getElementById('rpt-text').textContent = r;
+    document.getElementById('rpt-spin').style.display = 'none';
+    document.getElementById('rpt-status').textContent = '✓ AI Report ready — view tabs below or download';
+    document.getElementById('rpt-done-tag').style.display = 'inline-flex';
+    document.getElementById('rpt-gen-btn').disabled = false;
+    // Update full report preview
+    const fp = document.getElementById('rpt-full-preview');
+    if(fp) fp.innerHTML = `<div style="font-size:13px;color:var(--text2);line-height:1.8;white-space:pre-wrap">${r.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px">Test Cases Summary</div>
+        ${tcs.slice(0,5).map(tc=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px"><span class="tag ${tc.status==='pass'?'t-green':tc.status==='fail'?'t-red':'t-gray'}" style="font-size:10px">${tc.status}</span><span>${tc.description}</span></div>`).join('')}
+        ${tcs.length>5?`<div style="font-size:12px;color:var(--text3);padding-top:6px">+${tcs.length-5} more — see Test Cases tab</div>`:''}
+      </div>`;
+  } catch(e) {
+    document.getElementById('rpt-text').textContent = 'Error: ' + e.message;
+    document.getElementById('rpt-spin').style.display = 'none';
+    document.getElementById('rpt-status').textContent = '✗ Error — check your Groq API key';
+    document.getElementById('rpt-gen-btn').disabled = false;
+  }
+};
+
+// ── NEW TICKET ──
+function showNewTicket() {
+  S.currentGlobal = 'new-ticket';
+  S.selectedTicket = null;
+  document.getElementById('pipeline-bar').style.display = 'none';
+  document.getElementById('top-title').textContent = 'New Ticket';
+  document.getElementById('top-sub').textContent = 'Fill in the details to start the QA pipeline';
+  const c = document.getElementById('content');
+  c.innerHTML = `<div class="step-content" style="max-width:720px">
+    <div class="step-header">
+      <div class="step-title">Create New Ticket</div>
+      <div class="step-desc">A ticket is the starting point for the entire QA pipeline. Fill in the details carefully — they feed into scope analysis, test case generation and automation scripts.</div>
+    </div>
+    <div class="card">
+      <div class="fr"><label>Ticket Title *</label><input type="text" id="tk-title" placeholder="e.g. User Login & Authentication Flow"/></div>
+      <div class="fr"><label>Ticket Type</label>
+        <div class="type-pick" style="grid-template-columns:repeat(3,1fr)">
+          <div class="tp-card on" data-type="feature" onclick="pickType(this)"><div class="tp-ico">✦</div><div class="tp-name">New Feature</div></div>
+          <div class="tp-card" data-type="bugfix" onclick="pickType(this)"><div class="tp-ico">⚡</div><div class="tp-name">Bug Fix</div></div>
+          <div class="tp-card" data-type="improvement" onclick="pickType(this)"><div class="tp-ico">◈</div><div class="tp-name">Improvement</div></div>
+        </div>
+      </div>
+      <div class="fg3">
+        <div class="fr"><label>Priority</label><select id="tk-priority"><option value="high">🔴 High</option><option value="medium" selected>🟡 Medium</option><option value="low">🟢 Low</option></select></div>
+        <div class="fr"><label>Sprint / Version</label><input type="text" id="tk-sprint" placeholder="Sprint 3 / v2.1"/></div>
+        <div class="fr"><label>Environment URL</label><input type="url" id="tk-url" placeholder="https://staging.app.com"/></div>
+      </div>
+      <div class="fr"><label>Scope & Description *</label><textarea id="tk-scope" rows="6" placeholder="Describe what needs to be built or tested in detail. Include:&#10;• User flows (e.g. user opens login page, enters email/password, clicks sign in)&#10;• Acceptance criteria&#10;• Edge cases to consider&#10;• Affected areas of the app&#10;&#10;The more detail here, the better the AI-generated test cases and scripts will be."></textarea></div>
+      <div class="flex-gap">
+        <button class="btn pri" style="font-size:14px;padding:10px 20px" onclick="createTicket()">Create Ticket & Start Pipeline →</button>
+        <button class="btn" onclick="showWelcome()">Cancel</button>
+      </div>
+    </div>
+  </div>`;
+  window._newTicketType = 'feature';
+  document.querySelectorAll('#ticket-list-sidebar .tk-item').forEach(el => el.classList.remove('on'));
+}
+
+window.pickType = function(el) { document.querySelectorAll('.tp-card').forEach(c=>c.classList.remove('on')); el.classList.add('on'); window._newTicketType=el.dataset.type; };
+
+window.createTicket = function() {
+  const title = document.getElementById('tk-title').value.trim();
+  const scope = document.getElementById('tk-scope').value.trim();
+  if(!title || !scope) { alert('Please fill in title and scope.'); return; }
+  const t = {
+    id: uid('TK'), title, type: window._newTicketType||'feature',
+    priority: document.getElementById('tk-priority').value,
+    sprint: document.getElementById('tk-sprint').value.trim(),
+    url: document.getElementById('tk-url').value.trim(),
+    scope, status: 'open', created: today(), scopeSummary: ''
+  };
+  S.tickets.push(t);
+  save();
+  selectTicket(t.id);
+};
+
+// ── GLOBAL VIEWS ──
+function showGlobal(page) {
+  S.currentGlobal = page;
+  S.selectedTicket = null;
+  document.getElementById('pipeline-bar').style.display = 'none';
+  document.querySelectorAll('#ticket-list-sidebar .tk-item').forEach(el=>el.classList.remove('on'));
+  const pages = {library:['Script Library',renderLibrary], runs:['All Test Runs',renderAllRuns], bugs:['Bug Tracker',renderAllBugs], guide:['Setup Guide',renderGuide]};
+  const [title, fn] = pages[page]||['',()=>{}];
+  document.getElementById('top-title').textContent = title;
+  document.getElementById('top-sub').textContent = '';
+  const c = document.getElementById('content');
+  c.innerHTML=''; c.classList.add('fade-in'); setTimeout(()=>c.classList.remove('fade-in'),300);
+  fn(c);
+  document.querySelectorAll('.bnav-item').forEach(el=>{
+    el.classList.toggle('on', el.getAttribute('onclick')?.includes("'"+page+"'"));
+  });
+}
+window.showGlobal = showGlobal;
+
+function showWelcome() {
+  S.selectedTicket = null;
+  document.getElementById('pipeline-bar').style.display = 'none';
+  document.getElementById('top-title').textContent = 'QA Pilot';
+  document.getElementById('top-sub').textContent = 'Select a ticket or create a new one';
+  document.getElementById('content').innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;text-align:center;padding:40px"><div><div style="font-size:48px;margin-bottom:12px">🚀</div><div style="font-size:20px;font-weight:800;margin-bottom:8px">Select a ticket to continue</div><div style="font-size:14px;color:var(--text3);margin-bottom:24px">Or create a new one to start fresh</div><button class="btn next" onclick="showNewTicket()">＋ Create New Ticket</button></div></div>`;
+}
+
+// ── GLOBAL: LIBRARY ──
+function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function renderLibrary(c) {
+  if(!S.scripts.length){c.innerHTML=`<div class="step-content"><div class="empty" style="margin-top:60px"><div class="empty-ico">📂</div><p>No scripts saved yet. Generate scripts from the pipeline.</p></div></div>`;return}
+  c.innerHTML=`<div class="step-content"><div style="display:grid;gap:12px">${S.scripts.map(s=>`<div class="card"><div class="row" style="margin-bottom:10px"><div><div style="font-size:15px;font-weight:800;margin-bottom:5px">${s.name}</div><div class="flex-gap"><span class="tag ${s.type==='web'?'t-blue':s.type==='api'?'t-teal':s.type==='mobile'?'t-purple':'t-amber'}">${s.type}</span><span class="tag t-gray">${s.ticketId||''}</span><span style="font-size:11px;color:var(--text3)">${s.saved}</span></div></div><div class="flex-gap"><button class="btn sm" onclick="toggleEl('sv-${s.id}')">View Code</button><button class="btn sm" onclick="navigator.clipboard.writeText(S.scripts.find(x=>x.id==='${s.id}').code||'').then(()=>alert('Copied!'))">Copy</button><button class="btn sm danger" onclick="S.scripts=S.scripts.filter(x=>x.id!=='${s.id}');save();showGlobal('library')">Delete</button></div></div><div id="sv-${s.id}" style="display:none"><div class="ai-box code" style="max-height:280px">${escHtml(s.code||'')}</div></div></div>`).join('')}</div></div>`;
+}
+
+// ── GLOBAL: RUNS ──
+function renderAllRuns(c) {
+  if(!S.runs.length){c.innerHTML=`<div class="step-content"><div class="empty" style="margin-top:60px"><div class="empty-ico">▷</div><p>No test runs yet.</p></div></div>`;return}
+  const pass=S.runs.filter(r=>r.result==='pass').length;
+  c.innerHTML=`<div class="step-content"><div class="stats-row" style="margin-bottom:16px"><div class="stat s-blue"><div class="stat-label">Total</div><div class="stat-val blue">${S.runs.length}</div></div><div class="stat s-green"><div class="stat-label">Passed</div><div class="stat-val green">${pass}</div></div><div class="stat s-red"><div class="stat-label">Failed</div><div class="stat-val red">${S.runs.length-pass}</div></div><div class="stat s-green"><div class="stat-label">Pass Rate</div><div class="stat-val green">${Math.round(pass/S.runs.length*100)}%</div></div></div>
+  <div class="card"><div class="card-head">All Runs</div><div class="tw"><table><thead><tr><th>Run ID</th><th>Script</th><th>Type</th><th>Ticket</th><th>Date</th><th>Passed</th><th>Failed</th><th>Pass Rate</th><th>Result</th></tr></thead><tbody>${S.runs.map(r=>`<tr><td class="mono">${r.id}</td><td style="font-weight:600;color:var(--text)">${r.name}</td><td><span class="tag t-blue">${r.type||'web'}</span></td><td class="mono">${r.ticketId||'—'}</td><td>${r.date}</td><td style="color:var(--green);font-weight:700">${r.pass}</td><td style="color:var(--red);font-weight:700">${r.fail}</td><td><div style="display:flex;align-items:center;gap:6px"><div class="pbar" style="width:70px"><div class="pf" style="width:${r.total?Math.round(r.pass/r.total*100):0}%;background:${r.result==='pass'?'var(--green)':'var(--red)'}"></div></div><span class="mono">${r.total?Math.round(r.pass/r.total*100):0}%</span></div></td><td><span class="tag ${r.result==='pass'?'t-green':'t-red'}">${r.result}</span></td></tr>`).join('')}</tbody></table></div></div></div>`;
+}
+
+// ── GLOBAL: BUGS ──
+function renderAllBugs(c) {
+  const open=S.bugs.filter(b=>b.status==='open').length,high=S.bugs.filter(b=>b.severity==='high').length;
+  c.innerHTML=`<div class="step-content"><div class="stats-row"><div class="stat s-red"><div class="stat-label">Total</div><div class="stat-val red">${S.bugs.length}</div></div><div class="stat s-red"><div class="stat-label">Open</div><div class="stat-val red">${open}</div></div><div class="stat s-amber"><div class="stat-label">High Severity</div><div class="stat-val amber">${high}</div></div><div class="stat s-green"><div class="stat-label">Resolved</div><div class="stat-val green">${S.bugs.filter(b=>b.status==='resolved').length}</div></div></div>
+  ${!S.bugs.length?`<div class="empty"><div class="empty-ico">🐛</div><p>No bugs logged yet.</p></div>`:`<div class="card"><div class="card-head">All Bugs</div><div class="tw"><table><thead><tr><th>ID</th><th>Ticket</th><th>Step / Title</th><th>Error</th><th>Severity</th><th>Status</th><th>Date</th></tr></thead><tbody>${S.bugs.map((b,i)=>`<tr><td class="mono">${b.id}</td><td class="mono">${b.ticketId||'—'}</td><td style="max-width:180px;font-size:13px;font-weight:500;color:var(--text)">${b.title||b.step}</td><td style="max-width:160px;font-size:12px">${b.error||'—'}</td><td><select style="font-size:12px;padding:3px 6px;border:1.5px solid var(--border2);border-radius:6px;background:#fff" onchange="S.bugs[${i}].severity=this.value;save()"><option value="high" ${b.severity==='high'?'selected':''}>🔴 High</option><option value="medium" ${b.severity==='medium'?'selected':''}>🟡 Medium</option><option value="low" ${b.severity==='low'?'selected':''}>🟢 Low</option></select></td><td><select style="font-size:12px;padding:3px 6px;border:1.5px solid var(--border2);border-radius:6px;background:#fff" onchange="S.bugs[${i}].status=this.value;save()"><option value="open" ${b.status==='open'?'selected':''}>Open</option><option value="in-progress" ${b.status==='in-progress'?'selected':''}>In Progress</option><option value="resolved" ${b.status==='resolved'?'selected':''}>Resolved</option><option value="wont-fix" ${b.status==='wont-fix'?'selected':''}>Won't Fix</option></select></td><td style="font-size:12px;color:var(--text3)">${b.created}</td></tr>`).join('')}</tbody></table></div></div>`}
+  </div>`;
+}
+
+// ── SETUP GUIDE ──
+function renderGuide(c) {
+  function gstep(n,t,b){return`<div class="g-step"><div class="g-num">${n}</div><div><div class="g-title">${t}</div><div class="g-text">${b}</div></div></div>`}
+  function gcmd(cmd){return`<div class="g-cmd">${cmd}</div>`}
+  c.innerHTML=`<div class="step-content" style="max-width:680px"><div class="card"><div class="card-head">Beginner Setup Guide</div>
+  <div class="section-tabs" id="g-tabs"><div class="stab on" onclick="showG('playwright',this)">Playwright</div><div class="stab" onclick="showG('python',this)">Python API/DB</div><div class="stab" onclick="showG('appium',this)">Appium Mobile</div><div class="stab" onclick="showG('cypress',this)">Cypress</div></div>
+  <div id="g-body">${gstep(1,'Install Node.js','Go to <strong>nodejs.org</strong> → LTS → install.')+gstep(2,'Open Terminal','Windows: Win+R → cmd. Mac: Cmd+Space → Terminal.')+gstep(3,'Setup project',gcmd('mkdir my-qa && cd my-qa')+gcmd('npm init -y')+gcmd('npm install @playwright/test')+gcmd('npx playwright install'))+gstep(4,'Save script','Save generated script as <code>test.spec.js</code>')+gstep(5,'Run',gcmd('npx playwright test test.spec.js'))+gstep(6,'View report',gcmd('npx playwright show-report'))}</div>
+  </div></div>`;
+  window.showG=function(t,el){document.querySelectorAll('#g-tabs .stab').forEach(s=>s.classList.remove('on'));el.classList.add('on');
+    const fns={playwright:()=>gstep(1,'Node.js','nodejs.org → LTS')+gstep(2,'Terminal','Win+R → cmd | Cmd+Space → Terminal')+gstep(3,'Setup',gcmd('npm init -y && npm install @playwright/test')+gcmd('npx playwright install'))+gstep(4,'Run',gcmd('npx playwright test test.spec.js')),
+    python:()=>gstep(1,'Python','python.org → check "Add to PATH"')+gstep(2,'Install',gcmd('pip install requests')+gcmd('pip install pytest'))+gstep(3,'Run',gcmd('python test.py')),
+    appium:()=>gstep(1,'Prerequisites','Node.js + Java JDK 11+')+gstep(2,'Install',gcmd('npm install -g appium')+gcmd('appium driver install uiautomator2'))+gstep(3,'Start',gcmd('appium'))+gstep(4,'Run',gcmd('python test.py')),
+    cypress:()=>gstep(1,'Node.js','nodejs.org → LTS')+gstep(2,'Install',gcmd('npm init -y && npm install cypress --save-dev'))+gstep(3,'Run',gcmd('npx cypress open'))};
+    document.getElementById('g-body').innerHTML=(fns[t]||fns.playwright)();
+  };
+}
+
+window.toggleEl = function(id){const el=document.getElementById(id);if(el)el.style.display=el.style.display==='none'?'block':'none'};
+
+// ── INIT ──
+save();
+loadKey(); // ← restore saved API key
+if(S.selectedTicket && S.tickets.find(t=>t.id===S.selectedTicket)) {
+  const t = S.tickets.find(t=>t.id===S.selectedTicket);
+  document.getElementById('top-title').textContent = t.title;
+  document.getElementById('top-sub').textContent = t.id + ' · ' + t.type + ' · ' + t.priority;
+  document.getElementById('pipeline-bar').style.display = 'flex';
+  updatePipelineBar();
+  goStep(S.currentStep||1);
+} else if(S.currentGlobal) {
+  showGlobal(S.currentGlobal);
+}
+</script>
+</body>
+</html>
