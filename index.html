@@ -1211,9 +1211,7 @@ Remember: Return ONLY the JSON array, starting with [ and ending with ]`);
       S.testCases.push({
         id: uid('TC'), ticketId: S.selectedTicket,
         description: tc.description,
-        steps: tc.steps || '1. Navigate to feature
-2. Perform action
-3. Verify result',
+        steps: tc.steps || '1. Navigate to feature\n2. Perform action\n3. Verify result',
         expected: tc.expected || 'As described',
         actual: '', priority: tc.priority || 'medium',
         status: 'pending', category: tc.category || 'Functional',
@@ -2075,7 +2073,7 @@ function showNewTicket() {
         <div style="display:flex;gap:8px">
           <input id="cu-task-id" type="text" placeholder="e.g. https://app.clickup.com/t/86bxxxxxx or just 86bxxxxxx" style="flex:1;border:1.5px solid #C4B5FD;border-radius:6px;padding:8px 12px;font-size:13px;background:#fff;color:#1A1D2E"/>
           <button class="btn sm" onclick="importFromClickUp()" style="background:#7B68EE;color:#fff;border-color:#7B68EE;white-space:nowrap;padding:8px 14px">Fetch Task</button>
-          <button class="btn sm" onclick="document.getElementById('cu-import-panel').style.display='none'" style="padding:8px 10px">✕</button>
+          <button class="btn sm" onclick="hideCUPanel()" style="padding:8px 10px">✕</button>
         </div>
         <div id="cu-import-status" style="font-size:12px;margin-top:8px;color:var(--text3)"></div>
       </div>
@@ -2210,6 +2208,15 @@ if(S.selectedTicket && S.tickets.find(t=>t.id===S.selectedTicket)) {
 // ════════════════════════════════════════════════
 // CLICKUP INTEGRATION
 // ════════════════════════════════════════════════
+
+window.hideCUPanel = function() {
+  const p = document.getElementById('cu-import-panel');
+  if(p) p.style.display = 'none';
+};
+window.showClickUpImport = function() {
+  const p = document.getElementById('cu-import-panel');
+  if(p) p.style.display = p.style.display === 'none' ? 'block' : 'none';
+};
 window.saveClickUpKey = function() {
   const k = document.getElementById('clickup-key').value.trim();
   try { localStorage.setItem('qa_cu_key', k); } catch(e) {}
