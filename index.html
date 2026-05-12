@@ -2105,16 +2105,20 @@ function showNewTicket() {
 window.pickType = function(el) { document.querySelectorAll('.tp-card').forEach(c=>c.classList.remove('on')); el.classList.add('on'); window._newTicketType=el.dataset.type; };
 
 window.createTicket = function() {
-  const title = document.getElementById('tk-title').value.trim();
-  const scope = document.getElementById('tk-scope').value.trim();
+  const cu = window._clickupImport || {};
+  const title = (document.getElementById('tk-title').value||'').trim() || cu.title || '';
+  const scope = (document.getElementById('tk-scope').value||'').trim() || cu.scope || '';
   if(!title || !scope) { alert('Please fill in title and scope.'); return; }
   const t = {
     id: uid('TK'), title, type: window._newTicketType||'feature',
-    priority: document.getElementById('tk-priority').value,
-    sprint: document.getElementById('tk-sprint').value.trim(),
-    url: document.getElementById('tk-url').value.trim(),
-    scope, status: 'open', created: today(), scopeSummary: ''
+    priority: document.getElementById('tk-priority').value || cu.priority || 'medium',
+    sprint: (document.getElementById('tk-sprint').value||'').trim() || cu.sprint || '',
+    url: (document.getElementById('tk-url').value||'').trim() || cu.url || '',
+    scope, status: 'open', created: today(), scopeSummary: '',
+    clickupTaskId: window._pendingClickUpTaskId || null
   };
+  window._pendingClickUpTaskId = null;
+  window._clickupImport = null;
   S.tickets.push(t);
   save();
   selectTicket(t.id);
@@ -2383,15 +2387,32 @@ window.importFromClickUp = async function() {
     const commentText = comments.length ? '\n\nComments:\n' + comments.join('\n') : '';
     const scope = (desc + commentText).trim() || task.name;
 
-    // Fill in the form fields (tk- prefix = new ticket form IDs)
-    const setVal = (id, val) => { const el = document.getElementById(id); if(el && val) el.value = val; };
+    // Store ALL data globally so createTicket() can use it as fallback
+    window._pendingClickUpTaskId = taskId;
+    window._clickupImport = {
+      title: task.name || '',
+      scope: scope || '',
+      sprint: task.space?.name || task.list?.name || '',
+      url: task.url || '',
+      priority: normPri
+    };
+
+    // Fill form fields directly
+    const setVal = (id, val) => {
+      const el = document.getElementById(id);
+      if(el && val) {
+        el.value = val;
+        el.dispatchEvent(new Event('input', {bubbles:true}));
+        el.dispatchEvent(new Event('change', {bubbles:true}));
+        el.style.background = '#F0FDF4';
+        el.style.borderColor = '#16A34A';
+        setTimeout(() => { el.style.background=''; el.style.borderColor=''; }, 2000);
+      }
+    };
     setVal('tk-title', task.name);
     setVal('tk-scope', scope);
     setVal('tk-sprint', task.space?.name || task.list?.name || '');
     setVal('tk-url', task.url || '');
-
-    // Store ClickUp task ID for subtask creation later
-    window._pendingClickUpTaskId = taskId;
 
     // Auto-select ticket type based on task name
     const nameL = task.name.toLowerCase();
