@@ -219,7 +219,7 @@ tr:hover td{background:var(--bg3);color:var(--text)}
       <div class="key-wrap">
         <input type="password" id="clickup-key" placeholder="pk_..." autocomplete="off" oninput="saveClickUpKey()" style="border-color:#7B68EE44"/>
       </div>
-      <div class="key-hint muted" id="cu-key-hint">Enables: import tickets, auto-log bugs as subtasks</div>
+      <div class="key-hint muted" id="cu-key-hint">Get token: ClickUp → Settings → Apps → API Token (pk_...)</div>
     </div>
     <!-- MODEL -->
     <div class="model-section">
@@ -2250,21 +2250,52 @@ window.importFromClickUp = async function() {
   }
   if(!raw) { status.textContent = '✗ Enter a task URL or ID'; return; }
 
-  // Extract task ID from URL or use directly
-  const taskId = raw.includes('clickup.com') 
-    ? (raw.match(/\/t\/([a-zA-Z0-9]+)/) || raw.match(/task\/([a-zA-Z0-9]+)/) || [,''])[1]
-    : raw.replace('#','');
-
-  if(!taskId) { status.textContent = '✗ Could not extract task ID from URL'; return; }
-
   status.textContent = '⟳ Fetching task from ClickUp...';
   status.style.color = 'var(--text3)';
 
+  // Parse URL to extract team ID and task ID
+  // Handles: https://app.clickup.com/t/9018946602/PRO-6098
+  //          https://app.clickup.com/t/abc123
+  //          PRO-6098
+  //          86bxxxxxx
+  let taskId = '';
+  let teamId = '';
+  let isCustomId = false;
+
+  if(raw.includes('clickup.com')) {
+    // Extract from URL: /t/{teamId}/{customId} or /t/{taskId}
+    const m = raw.match(/\/t\/(\d+)\/([A-Z]+-\d+)/);
+    const m2 = raw.match(/\/t\/(\d+)\/([a-zA-Z0-9]+)/);
+    const m3 = raw.match(/\/t\/([a-zA-Z0-9]+)$/);
+    if(m) { teamId = m[1]; taskId = m[2]; isCustomId = true; }
+    else if(m2) { teamId = m2[1]; taskId = m2[2]; isCustomId = /^[A-Z]/.test(m2[2]); }
+    else if(m3) { taskId = m3[1]; }
+  } else if(/^[A-Z]+-\d+$/.test(raw.trim())) {
+    // Custom ID like PRO-6098 — need team ID
+    taskId = raw.trim(); isCustomId = true;
+    // Try to get team ID from sidebar hint or saved
+    teamId = localStorage.getItem('qa_cu_team') || '';
+  } else {
+    taskId = raw.replace('#','').trim();
+  }
+
+  if(!taskId) { status.textContent = '✗ Could not extract task ID'; return; }
+
+  // Save team ID for future use
+  if(teamId) localStorage.setItem('qa_cu_team', teamId);
+
   try {
-    const res = await fetch('https://api.clickup.com/api/v2/task/' + taskId + '?include_subtasks=true', {
+    let url = 'https://api.clickup.com/api/v2/task/' + taskId;
+    if(isCustomId && teamId) url += '?custom_task_ids=true&team_id=' + teamId;
+    else if(isCustomId) url += '?custom_task_ids=true';
+
+    const res = await fetch(url, {
       headers: { 'Authorization': cuToken, 'Content-Type': 'application/json' }
     });
-    if(!res.ok) throw new Error('Task not found (HTTP ' + res.status + '). Check your token and task ID.');
+
+    if(res.status === 401) throw new Error('HTTP 401 — Invalid API token. Get your token from ClickUp → Settings → Apps → API Token (starts with pk_)');
+    if(res.status === 404) throw new Error('HTTP 404 — Task not found. Check the task ID or URL.');
+    if(!res.ok) throw new Error('HTTP ' + res.status + ' — ' + (await res.text()).slice(0,100));
     const task = await res.json();
 
     // Also fetch comments
