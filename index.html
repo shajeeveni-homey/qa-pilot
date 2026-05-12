@@ -214,6 +214,13 @@ tr:hover td{background:var(--bg3);color:var(--text)}
       </div>
       <div class="key-hint muted" id="key-hint">Enter your Groq API key</div>
     </div>
+    <div class="key-section" style="margin-top:8px">
+      <div class="key-label" style="color:#7B68EE">🔗 ClickUp API Token <span style="font-size:9px;background:#EDE9FE;color:#6D28D9;padding:1px 5px;border-radius:8px;margin-left:4px">optional</span></div>
+      <div class="key-wrap">
+        <input type="password" id="clickup-key" placeholder="pk_..." autocomplete="off" oninput="saveClickUpKey()" style="border-color:#7B68EE44"/>
+      </div>
+      <div class="key-hint muted" id="cu-key-hint">Enables: import tickets, auto-log bugs as subtasks</div>
+    </div>
     <!-- MODEL -->
     <div class="model-section">
       <div class="model-label">AI Model</div>
@@ -243,6 +250,17 @@ tr:hover td{background:var(--bg3);color:var(--text)}
       <div class="bnav-item" onclick="showGlobal('library')"><span>⊞</span> Script Library <span id="nb-scripts" style="margin-left:auto;font-size:10px;background:var(--accent-glow);color:var(--accent);padding:1px 6px;border-radius:10px;font-weight:700">0</span></div>
       <div class="bnav-item" onclick="showGlobal('runs')"><span>▷</span> All Test Runs <span id="nb-runs" style="margin-left:auto;font-size:10px;background:var(--green-bg);color:var(--green-text);padding:1px 6px;border-radius:10px;font-weight:700">0</span></div>
       <div class="bnav-item" onclick="showGlobal('bugs')"><span>◎</span> Bug Tracker <span id="nb-bugs" style="margin-left:auto;font-size:10px;background:var(--red-bg);color:var(--red-text);padding:1px 6px;border-radius:10px;font-weight:700">0</span></div>
+    <div class="nav-item" onclick="toggleSect('ss-ks');document.getElementById('ss-ks').scrollIntoView({behavior:'smooth'})" style="color:var(--amber-text);background:var(--amber-bg);border-radius:6px;margin:4px 0">
+      <span>🧠</span> Knowledge Store
+    </div>
+    <div id="ss-ks" style="display:none;padding:0 8px 8px">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:6px;line-height:1.5">Patterns & edge cases AI will use when generating test cases.</div>
+      <div style="display:flex;gap:4px;margin-bottom:6px">
+        <input id="ks-input" type="text" placeholder="e.g. Always check empty state..." style="flex:1;font-size:11.5px;padding:5px 8px;border:1.5px solid var(--border2);border-radius:5px;background:#fff;color:var(--text);min-width:0" onkeydown="if(event.key==='Enter')addKSNote()"/>
+        <button class="btn xs pri" onclick="addKSNote()" style="flex-shrink:0">+</button>
+      </div>
+      <div id="ks-list" style="max-height:160px;overflow-y:auto"></div>
+    </div>
     </div>
   </div>
 </div>
@@ -276,6 +294,8 @@ tr:hover td{background:var(--bg3);color:var(--text)}
     <div class="p-step" id="ps-6" onclick="goStep(6)"><span class="p-step-num">6</span> Bugs</div>
     <span class="p-step-arr">›</span>
     <div class="p-step" id="ps-7" onclick="goStep(7)"><span class="p-step-num">7</span> Report</div>
+    <span class="p-step-arr">›</span>
+    <div class="p-step" id="ps-8" onclick="goStep(8)" style="color:var(--green-text)"><span class="p-step-num">8</span> Sign-off</div>
   </div>
 
   <div class="content" id="content">
@@ -296,6 +316,8 @@ tr:hover td{background:var(--bg3);color:var(--text)}
           <span style="background:var(--accent-glow);color:var(--accent);padding:5px 12px;border-radius:20px">2 Scope AI</span>
           <span style="color:var(--text3)">→</span>
           <span style="background:var(--accent-glow);color:var(--accent);padding:5px 12px;border-radius:20px">3 Test Cases</span>
+          <span style="color:var(--text3)">→</span>
+          <span style="background:var(--green-bg);color:var(--green-text);padding:5px 12px;border-radius:20px">8 Sign-off</span>
           <span style="color:var(--text3)">→</span>
           <span style="background:var(--accent-glow);color:var(--accent);padding:5px 12px;border-radius:20px">4 Script</span>
           <span style="color:var(--text3)">→</span>
@@ -396,10 +418,11 @@ function stepStatus(id) {
 
 function updatePipelineBar() {
   const st = stepStatus(S.selectedTicket);
-  for(let i = 1; i <= 7; i++) {
+  for(let i = 1; i <= 8; i++) {
     const el = document.getElementById('ps-'+i);
     if(!el) continue;
     el.className = 'p-step';
+    if(i === 8) el.style.cssText += ';color:var(--green-text)';
     if(st[i] && i !== S.currentStep) el.classList.add('done');
     if(i === S.currentStep) el.classList.add('active');
     const num = el.querySelector('.p-step-num');
@@ -514,6 +537,35 @@ function readinessBar(id){
   </div>`;
 }
 
+
+// ── KNOWLEDGE STORE ──
+window.addKSNote = function() {
+  const inp = document.getElementById('ks-input');
+  const note = inp.value.trim();
+  if(!note) return;
+  const ks = JSON.parse(localStorage.getItem('qa_knowledge_store')||'[]');
+  ks.push({id: uid('KS'), note, created: today()});
+  localStorage.setItem('qa_knowledge_store', JSON.stringify(ks));
+  inp.value = '';
+  renderKSList();
+};
+window.deleteKSNote = function(id) {
+  const ks = JSON.parse(localStorage.getItem('qa_knowledge_store')||'[]').filter(k=>k.id!==id);
+  localStorage.setItem('qa_knowledge_store', JSON.stringify(ks));
+  renderKSList();
+};
+function renderKSList() {
+  const el = document.getElementById('ks-list');
+  if(!el) return;
+  const ks = JSON.parse(localStorage.getItem('qa_knowledge_store')||'[]');
+  el.innerHTML = ks.length===0
+    ? '<div style="font-size:11px;color:var(--text3);font-style:italic">No notes yet</div>'
+    : ks.map(k=>`<div style="display:flex;align-items:flex-start;gap:4px;padding:4px 0;border-bottom:1px solid var(--border);font-size:11.5px;color:var(--text2)">
+        <span style="flex:1;line-height:1.5">${k.note}</span>
+        <button onclick="deleteKSNote('${k.id}')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;flex-shrink:0;padding:0 2px" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text3)'">×</button>
+      </div>`).join('');
+}
+
 // ── SIDEBAR TICKETS ──
 function renderSidebarTickets() {
   const el = document.getElementById('ticket-list-sidebar');
@@ -595,7 +647,7 @@ function goStep(n) {
   c.innerHTML = '';
   c.classList.add('fade-in');
   setTimeout(() => c.classList.remove('fade-in'), 300);
-  const steps = [null, step1Details, step2Scope, step3TestCases, step4Script, step5Run, step6Bugs, step7Report];
+  const steps = [null, step1Details, step2Scope, step3TestCases, step4Script, step5Run, step6Bugs, step7Report, step8Signoff];
   if(steps[n]) steps[n](c);
 }
 
@@ -1035,24 +1087,145 @@ function renderTCTable() {
       <button class="btn next" onclick="goStep(4)">Create Script →</button>
     </div>
   </div>
+
+  <!-- ── ADD MORE TEST CASES ── -->
+  <div class="card" style="border:2px dashed var(--border2);margin-top:0">
+    <div class="card-head" style="margin-bottom:10px">➕ Add More Test Cases</div>
+
+    <div style="background:var(--accent-glow);border:1px solid var(--accent)33;border-radius:var(--radius);padding:12px;margin-bottom:12px">
+      <div style="font-size:13px;font-weight:700;color:var(--accent);margin-bottom:6px">✦ AI: Suggest Missing Test Cases</div>
+      <div style="font-size:12.5px;color:var(--text2);margin-bottom:8px">Tell AI what to focus on, or leave blank to auto-detect coverage gaps.</div>
+      <div style="display:flex;gap:8px">
+        <input id="tc-feedback" type="text" placeholder='e.g. "add more security tests" or "missing password reset flow"' style="flex:1;border:1.5px solid var(--border2);border-radius:6px;padding:8px 12px;font-size:13px;background:#fff;color:var(--text)"/>
+        <button class="btn grq sm" onclick="suggestMissingTCs()" id="suggest-btn" style="white-space:nowrap">✦ Suggest Missing</button>
+      </div>
+      <div id="suggest-status" style="font-size:12px;color:var(--text3);margin-top:6px;display:none"></div>
+    </div>
+
+    <div style="margin-bottom:10px">
+      <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Quick Add — Manual</div>
+      <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px">
+        <input id="quick-tc-desc" type="text" placeholder="Test case description..." style="border:1.5px solid var(--border2);border-radius:6px;padding:8px 12px;font-size:13px;background:#fff;color:var(--text)" onkeydown="if(event.key==='Enter')quickAddTC()"/>
+        <select id="quick-tc-pri" style="border:1.5px solid var(--border2);border-radius:6px;padding:8px;font-size:12.5px;background:#fff">
+          <option value="high">High</option><option value="medium" selected>Medium</option><option value="low">Low</option>
+        </select>
+        <button class="btn pri sm" onclick="quickAddTC()">+ Add</button>
+      </div>
+    </div>
+
+    <details>
+      <summary style="font-size:11px;font-weight:700;color:var(--text3);cursor:pointer;text-transform:uppercase;letter-spacing:.5px;padding:4px 0">Batch Add (multiple lines)</summary>
+      <div style="margin-top:10px">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:6px">One per line. Add | high or | low at end for priority.</div>
+        <textarea id="batch-tc-input" rows="4" placeholder="User can login with valid credentials | high&#10;Empty email shows error&#10;Password field masks input | medium" style="width:100%;border:1.5px solid var(--border2);border-radius:6px;padding:10px;font-size:12.5px;background:#fff;color:var(--text);resize:vertical"></textarea>
+        <button class="btn pri sm" onclick="batchAddTCs()" style="margin-top:8px">+ Import All</button>
+      </div>
+    </details>
+  </div>
   </div>`;
 }
 
 window.generateTestCases = async function() {
   const t = getTicket();
+  // Pull knowledge store notes to inform generation
+  const ks = JSON.parse(localStorage.getItem('qa_knowledge_store')||'[]');
+  const ksNotes = ks.length ? '\n\nKNOWLEDGE STORE (past patterns & edge cases to include):\n' + ks.map(k=>`- ${k.note}`).join('\n') : '';
+
   document.getElementById('tc-gen-status').style.display = 'block';
   document.getElementById('tc-spin').style.display = 'inline-block';
-  document.getElementById('tc-status').textContent = 'Generating test cases with AI...';
+  document.getElementById('tc-status').textContent = 'Generating comprehensive test cases...';
   document.getElementById('tc-gen-btn').disabled = true;
   try {
-    const raw = await ai(`You are a senior QA engineer. Generate comprehensive test cases for this ticket.\n\nReturn ONLY a valid JSON array. No markdown, no code fences.\nFormat: [{"description":"...","steps":"1. Step\\n2. Step","expected":"Expected result","priority":"high|medium|low"}]\n\nGenerate 8-12 test cases covering happy paths, edge cases, error states, boundary values and negative tests.\n\nTicket: ${t.title}\nType: ${t.type}\nEnvironment URL: ${t.url||'not specified'}\nScope: ${t.scope}\n${t.scopeSummary?'Scope Analysis:\n'+t.scopeSummary.slice(0,600):''}`);
-    const cleaned = raw.replace(/```json|```/g,'').trim();
-    const arr = JSON.parse(cleaned);
-    arr.forEach(tc => S.testCases.push({id:uid('TC'), ticketId:S.selectedTicket, description:tc.description, steps:tc.steps, expected:tc.expected, priority:tc.priority||'medium', actual:'', status:'pending'}));
+    const raw = await ai(`You are a senior QA engineer. Generate EXHAUSTIVE test cases for this ticket.
+Return ONLY a valid JSON array. No markdown, no code fences, no explanation.
+Format: [{"description":"...","steps":"1. Step\n2. Step","expected":"Expected result","priority":"high|medium|low","category":"Functional|Negative|Edge|Boundary|Security|Performance|UI/UX|Accessibility|API"}]
+
+IMPORTANT: Generate AT LEAST 25-35 test cases covering ALL of these categories:
+
+FUNCTIONAL (Happy Path):
+- All primary user flows end-to-end
+- All success scenarios
+
+NEGATIVE TESTS:
+- Invalid inputs (wrong type, wrong format, too long, too short, special characters, SQL injection strings, script tags)
+- Missing required fields
+- Unauthorized access attempts
+- Wrong credentials / expired tokens
+- Submitting empty forms
+
+EDGE CASES:
+- Maximum allowed values
+- Minimum allowed values
+- Exactly at boundaries (boundary+1, boundary-1)
+- Empty state handling
+- Single character inputs
+- Unicode and emoji inputs
+- Extremely long strings
+
+BOUNDARY VALUES:
+- Min/max field lengths
+- Numeric limits
+- Date range limits
+- File size limits
+
+SECURITY:
+- XSS attempt in input fields
+- SQL injection in search/login fields
+- CSRF protection
+- Direct URL access without auth
+
+PERFORMANCE:
+- Page load with large data sets
+- Rapid repeated actions (double click, spam submit)
+- Concurrent requests
+
+UI/UX:
+- Responsive layout on mobile
+- Error messages display correctly
+- Loading states shown
+- Success feedback shown
+- Keyboard navigation (Tab order)
+
+API (if applicable):
+- Valid request returns 200
+- Missing auth header returns 401
+- Wrong payload returns 400
+
+Ticket: ${t.title}
+Type: ${t.type} | Priority: ${t.priority}
+Scope: ${t.scope || t.title}
+Environment: ${t.url || 'web application'}${ksNotes}
+
+Remember: Return ONLY the JSON array, starting with [ and ending with ]`);
+
+    let arr = [];
+    try {
+      const clean = raw.replace(/```json|```/g,'').trim();
+      arr = JSON.parse(clean);
+    } catch(e) {
+      const m = raw.match(/\[[\s\S]*\]/);
+      if(m) arr = JSON.parse(m[0]);
+    }
+    const existing = getTCs().length;
+    arr.forEach(tc => {
+      S.testCases.push({
+        id: uid('TC'), ticketId: S.selectedTicket,
+        description: tc.description,
+        steps: tc.steps || '1. Navigate to feature
+2. Perform action
+3. Verify result',
+        expected: tc.expected || 'As described',
+        actual: '', priority: tc.priority || 'medium',
+        status: 'pending', category: tc.category || 'Functional',
+        source: 'ai'
+      });
+    });
     save();
+    document.getElementById('tc-gen-status').style.display = 'block';
     document.getElementById('tc-spin').style.display = 'none';
-    document.getElementById('tc-status').textContent = `✓ ${arr.length} test cases generated`;
+    document.getElementById('tc-status').textContent = `✓ ${arr.length} test cases generated (${existing > 0 ? existing + ' existing + ' + arr.length + ' new' : arr.length + ' total'})`;
     document.getElementById('tc-gen-btn').disabled = false;
+    document.getElementById('tc-gen-btn').textContent = '✦ Regenerate / Add More';
     document.getElementById('tc-table-wrap').innerHTML = renderTCTable();
     updatePipelineBar();
   } catch(e) {
@@ -1067,6 +1240,103 @@ window.updateTC = function(i, field, val) {
   const idx = S.testCases.findIndex(t => t.id === tcs[i].id);
   if(idx >= 0) { S.testCases[idx][field] = val; save(); }
 };
+
+window.quickAddTC = function() {
+  const desc = document.getElementById('quick-tc-desc').value.trim();
+  if(!desc) { alert('Please enter a description.'); return; }
+  const pri = document.getElementById('quick-tc-pri').value;
+  S.testCases.push({
+    id: uid('TC'), ticketId: S.selectedTicket,
+    description: desc,
+    steps: 'Manually defined test case',
+    expected: 'As described', actual: '',
+    priority: pri, status: 'pending',
+    category: 'Functional', source: 'manual'
+  });
+  save();
+  document.getElementById('quick-tc-desc').value = '';
+  document.getElementById('tc-table-wrap').innerHTML = renderTCTable();
+  updatePipelineBar();
+};
+
+window.batchAddTCs = function() {
+  const lines = document.getElementById('batch-tc-input').value.split('\n').filter(l=>l.trim());
+  if(!lines.length) return;
+  lines.forEach(line => {
+    const parts = line.split('|');
+    const desc = parts[0].trim();
+    if(!desc) return;
+    const priRaw = (parts[1]||'').trim().toLowerCase();
+    const pri = priRaw==='high'?'high':priRaw==='low'?'low':'medium';
+    S.testCases.push({
+      id: uid('TC'), ticketId: S.selectedTicket,
+      description: desc, steps: 'Manually added', expected: 'As described',
+      actual: '', priority: pri, status: 'pending',
+      category: 'Functional', source: 'manual'
+    });
+  });
+  save();
+  document.getElementById('batch-tc-input').value = '';
+  document.getElementById('tc-table-wrap').innerHTML = renderTCTable();
+  updatePipelineBar();
+  alert(`✓ ${lines.length} test cases added.`);
+};
+
+window.suggestMissingTCs = async function() {
+  const t = getTicket(), tcs = getTCs();
+  const feedback = document.getElementById('tc-feedback').value.trim();
+  const btn = document.getElementById('suggest-btn');
+  const status = document.getElementById('suggest-status');
+  btn.disabled = true; btn.textContent = 'Thinking...';
+  status.style.display = 'block'; status.textContent = '⟳ AI is analysing gaps in coverage...';
+  
+  // Pull knowledge store
+  const ks = JSON.parse(localStorage.getItem('qa_knowledge_store')||'[]');
+  const ksNotes = ks.length ? '\nPast patterns to draw from: ' + ks.map(k=>k.note).join(', ') : '';
+  
+  try {
+    const existing = tcs.map((tc,i)=>`${i+1}. [${tc.category||'Functional'}] ${tc.description}`).join('\n');
+    const raw = await ai(`You are a senior QA engineer reviewing test coverage gaps.
+
+EXISTING TEST CASES (${tcs.length} total):
+${existing}
+
+TICKET: ${t.title}
+Scope: ${t.scope || t.title}
+${feedback ? 'USER FOCUS REQUEST: ' + feedback : ''}${ksNotes}
+
+Identify what is MISSING from the existing test cases above and generate ONLY new, non-duplicate test cases.
+Focus on: ${feedback || 'negative cases, edge cases, security, boundary values and any gaps you spot'}.
+
+Return ONLY a JSON array with NEW test cases not already covered:
+[{"description":"...","steps":"1. Step\n2. Step","expected":"Expected result","priority":"high|medium|low","category":"Functional|Negative|Edge|Boundary|Security|Performance|UI/UX|API"}]
+
+Generate 8-15 missing test cases. Return ONLY JSON.`);
+
+    let arr = [];
+    try { arr = JSON.parse(raw.replace(/\`\`\`json|\`\`\`/g,'').trim()); }
+    catch(e) { const m = raw.match(/\[[\s\S]*\]/); if(m) arr = JSON.parse(m[0]); }
+    arr.forEach(tc => {
+      S.testCases.push({
+        id: uid('TC'), ticketId: S.selectedTicket,
+        description: tc.description, steps: tc.steps || 'AI suggested',
+        expected: tc.expected || 'As described', actual: '',
+        priority: tc.priority || 'medium', status: 'pending',
+        category: tc.category || 'Functional', source: 'ai-suggested'
+      });
+    });
+    save();
+    status.textContent = `✓ ${arr.length} missing test cases added!`;
+    status.style.color = 'var(--green)';
+    document.getElementById('tc-table-wrap').innerHTML = renderTCTable();
+    updatePipelineBar();
+    document.getElementById('tc-feedback').value = '';
+  } catch(e) {
+    status.textContent = '✗ Error: ' + e.message;
+  }
+  btn.disabled = false; btn.textContent = '✦ Suggest Missing';
+};
+
 window.addManualTC = function() {
   S.testCases.push({id:uid('TC'), ticketId:S.selectedTicket, description:'New test case', steps:'1. Step\n2. Verify', expected:'Expected result', actual:'', status:'pending', priority:'medium'});
   save(); goStep(3);
@@ -1352,7 +1622,7 @@ window.simulateTestRun = async function() {
           S.testCases[tcIndex].lastRunDate = today();
         }
       }
-      newBugs.push({
+      const newBug = {
         id: uid('BG'),
         ticketId: S.selectedTicket,
         type: s.type || 'web',
@@ -1362,8 +1632,24 @@ window.simulateTestRun = async function() {
         severity: Math.random() > 0.6 ? 'high' : 'medium',
         status: 'open',
         created: today(),
-        runId
-      });
+        runId,
+        clickupTaskId: null
+      };
+      newBugs.push(newBug);
+      // Auto-create ClickUp subtask if token + parent task available
+      const cuToken = localStorage.getItem('qa_cu_key');
+      const parentTaskId = getTicket()?.clickupTaskId;
+      if(cuToken && parentTaskId) {
+        createClickUpSubtask(cuToken, parentTaskId, newBug).then(id => {
+          if(id) {
+            newBug.clickupTaskId = id;
+            const bi = S.bugs.findIndex(b=>b.id===newBug.id);
+            if(bi>=0) S.bugs[bi].clickupTaskId = id;
+            save();
+            logLine('       🔗 ClickUp subtask created: ' + id, 'lp', 0);
+          }
+        }).catch(()=>{});
+      }
     }
   }
 
@@ -1518,13 +1804,14 @@ function step7Report(c) {
                 <span style="margin-left:8px;font-size:12px;font-weight:700;color:${rd.color}">${rd.emoji} ${rd.verdict} · ${rd.passRate}% Pass Rate</span>
               </div>
               <div class="tw"><table>
-                <thead><tr><th>#</th><th>Description</th><th>Steps</th><th>Expected</th><th>Actual Result</th><th>Status</th><th>Priority</th></tr></thead>
+                <thead><tr><th>#</th><th>Description</th><th>Category</th><th>Steps</th><th>Expected</th><th>Actual Result</th><th>Status</th><th>Priority</th></tr></thead>
                 <tbody>${tcs.map(tc=>`<tr>
                   <td class="mono" style="font-size:10px">${tc.id}</td>
-                  <td style="font-size:13px;font-weight:500;color:var(--text);max-width:200px">${tc.description}</td>
-                  <td style="font-size:12px;color:var(--text2);max-width:200px;white-space:pre-wrap">${tc.steps}</td>
-                  <td style="font-size:12px;max-width:160px">${tc.expected}</td>
-                  <td style="font-size:12px;max-width:140px;color:${tc.actual?'var(--text2)':'var(--text3)'}">${tc.actual||'—'}</td>
+                  <td style="font-size:13px;font-weight:500;color:var(--text);max-width:180px">${tc.description}${tc.source==='ai-suggested'?'<span style="font-size:9px;background:var(--purple-bg);color:var(--purple-text);padding:1px 5px;border-radius:8px;margin-left:4px;font-weight:700">AI+</span>':tc.source==='imported'?'<span style="font-size:9px;background:#E0F2FE;color:#0369A1;padding:1px 5px;border-radius:8px;margin-left:4px;font-weight:700">IMP</span>':''}</td>
+                  <td><span class="tag ${(tc.category||'Functional')==='Negative'?'t-red':(tc.category||'Functional')==='Security'?'t-purple':(tc.category||'Functional')==='Edge'?'t-amber':(tc.category||'Functional')==='Performance'?'t-blue':'t-gray'}" style="font-size:10px;white-space:nowrap">${tc.category||'Functional'}</span></td>
+                  <td style="font-size:12px;color:var(--text2);max-width:180px;white-space:pre-wrap">${tc.steps}</td>
+                  <td style="font-size:12px;max-width:140px">${tc.expected}</td>
+                  <td style="font-size:12px;max-width:130px;color:${tc.actual?'var(--text2)':'var(--text3)'}">${tc.actual||'—'}</td>
                   <td><span class="tag ${tc.status==='pass'?'t-green':tc.status==='fail'?'t-red':tc.status==='skip'?'t-purple':'t-gray'}">${tc.status==='pass'?'✓ Pass':tc.status==='fail'?'✗ Fail':tc.status==='skip'?'⏭ Skip':tc.status==='blocked'?'🚫 Blocked':'⏳ Pending'}</span></td>
                   <td><span class="tag ${tc.priority==='high'?'t-red':tc.priority==='medium'?'t-amber':'t-green'}">${tc.priority}</span></td>
                 </tr>`).join('')}</tbody>
@@ -1571,6 +1858,7 @@ function step7Report(c) {
           <button class="btn sm pri" onclick="copyAIReport()">📋 Copy AI Report</button>
           <button class="btn sm success" onclick="downloadReport()" id="rpt-dl-btn">⬇ Download Full Report</button>
           <button class="btn sm" onclick="printReport()" id="rpt-print-btn">🖨 Print / Save PDF</button>
+          <button class="btn sm" onclick="goStep(8)" style="background:var(--green);color:#fff;border-color:var(--green)">✅ Proceed to Sign-off →</button>
           <span id="rpt-done-tag" class="tag t-green" style="font-size:11px;display:none">✓ Report Ready</span>
         </div>
       </div>
@@ -1778,6 +2066,19 @@ function showNewTicket() {
       <div class="step-desc">A ticket is the starting point for the entire QA pipeline. Fill in the details carefully — they feed into scope analysis, test case generation and automation scripts.</div>
     </div>
     <div class="card">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+        <button class="btn sm" onclick="showClickUpImport()" style="background:#7B68EE;color:#fff;border-color:#7B68EE;font-size:12px">🔗 Import from ClickUp</button>
+      </div>
+      <div id="cu-import-panel" style="display:none;background:#F5F3FF;border:1.5px solid #C4B5FD;border-radius:var(--radius);padding:14px;margin-bottom:14px">
+        <div style="font-size:13px;font-weight:700;color:#6D28D9;margin-bottom:8px">📋 Import from ClickUp</div>
+        <div style="font-size:12px;color:#6D28D9;margin-bottom:10px">Paste the task URL or ID — title, description, priority and comments will be auto-filled.</div>
+        <div style="display:flex;gap:8px">
+          <input id="cu-task-id" type="text" placeholder="e.g. https://app.clickup.com/t/86bxxxxxx or just 86bxxxxxx" style="flex:1;border:1.5px solid #C4B5FD;border-radius:6px;padding:8px 12px;font-size:13px;background:#fff;color:#1A1D2E"/>
+          <button class="btn sm" onclick="importFromClickUp()" style="background:#7B68EE;color:#fff;border-color:#7B68EE;white-space:nowrap;padding:8px 14px">Fetch Task</button>
+          <button class="btn sm" onclick="document.getElementById('cu-import-panel').style.display='none'" style="padding:8px 10px">✕</button>
+        </div>
+        <div id="cu-import-status" style="font-size:12px;margin-top:8px;color:var(--text3)"></div>
+      </div>
       <div class="fr"><label>Ticket Title *</label><input type="text" id="tk-title" placeholder="e.g. User Login & Authentication Flow"/></div>
       <div class="fr"><label>Ticket Type</label>
         <div class="type-pick" style="grid-template-columns:repeat(3,1fr)">
@@ -1892,6 +2193,8 @@ window.toggleEl = function(id){const el=document.getElementById(id);if(el)el.sty
 // ── INIT ──
 save();
 loadKey(); // ← restore saved API key
+  loadClickUpKey(); // ← restore ClickUp token
+  renderKSList(); // ← load knowledge store
 if(S.selectedTicket && S.tickets.find(t=>t.id===S.selectedTicket)) {
   const t = S.tickets.find(t=>t.id===S.selectedTicket);
   document.getElementById('top-title').textContent = t.title;
@@ -1902,6 +2205,398 @@ if(S.selectedTicket && S.tickets.find(t=>t.id===S.selectedTicket)) {
 } else if(S.currentGlobal) {
   showGlobal(S.currentGlobal);
 }
+
+
+// ════════════════════════════════════════════════
+// CLICKUP INTEGRATION
+// ════════════════════════════════════════════════
+window.saveClickUpKey = function() {
+  const k = document.getElementById('clickup-key').value.trim();
+  try { localStorage.setItem('qa_cu_key', k); } catch(e) {}
+  const hint = document.getElementById('cu-key-hint');
+  if(hint) hint.textContent = k ? '✓ ClickUp token saved' : 'Enables: import tickets, auto-log bugs as subtasks';
+  if(hint) hint.style.color = k ? 'var(--green)' : '';
+};
+
+function loadClickUpKey() {
+  try {
+    const k = localStorage.getItem('qa_cu_key');
+    const el = document.getElementById('clickup-key');
+    if(k && el) { el.value = k; saveClickUpKey(); }
+  } catch(e) {}
+}
+
+window.showClickUpImport = function() {
+  const panel = document.getElementById('cu-import-panel');
+  if(panel) panel.style.display = panel.style.display==='none' ? 'block' : 'none';
+};
+
+window.importFromClickUp = async function() {
+  const raw = document.getElementById('cu-task-id').value.trim();
+  const status = document.getElementById('cu-import-status');
+  const cuToken = localStorage.getItem('qa_cu_key');
+
+  if(!cuToken) {
+    status.textContent = '✗ Add your ClickUp API token in the sidebar first';
+    status.style.color = 'var(--red)';
+    return;
+  }
+  if(!raw) { status.textContent = '✗ Enter a task URL or ID'; return; }
+
+  // Extract task ID from URL or use directly
+  const taskId = raw.includes('clickup.com') 
+    ? (raw.match(/\/t\/([a-zA-Z0-9]+)/) || raw.match(/task\/([a-zA-Z0-9]+)/) || [,''])[1]
+    : raw.replace('#','');
+
+  if(!taskId) { status.textContent = '✗ Could not extract task ID from URL'; return; }
+
+  status.textContent = '⟳ Fetching task from ClickUp...';
+  status.style.color = 'var(--text3)';
+
+  try {
+    const res = await fetch('https://api.clickup.com/api/v2/task/' + taskId + '?include_subtasks=true', {
+      headers: { 'Authorization': cuToken, 'Content-Type': 'application/json' }
+    });
+    if(!res.ok) throw new Error('Task not found (HTTP ' + res.status + '). Check your token and task ID.');
+    const task = await res.json();
+
+    // Also fetch comments
+    let comments = [];
+    try {
+      const cr = await fetch('https://api.clickup.com/api/v2/task/' + taskId + '/comment', {
+        headers: { 'Authorization': cuToken }
+      });
+      if(cr.ok) {
+        const cd = await cr.json();
+        comments = (cd.comments||[]).slice(0,5).map(c => c.comment_text || '').filter(Boolean);
+      }
+    } catch(e) {}
+
+    // Map ClickUp priority
+    const priMap = {1:'urgent', 2:'high', 3:'normal', 4:'low'};
+    const pri = priMap[task.priority?.id] || 'medium';
+    const normPri = pri==='urgent'||pri==='high' ? 'high' : pri==='low' ? 'low' : 'medium';
+
+    // Build scope from description + comments
+    const desc = (task.description || task.text_content || task.name || '').slice(0, 2000);
+    const commentText = comments.length ? '\n\nComments:\n' + comments.join('\n') : '';
+    const scope = (desc + commentText).trim() || task.name;
+
+    // Fill in the form fields
+    const setVal = (id, val) => { const el = document.getElementById(id); if(el) el.value = val; };
+    setVal('t-title', task.name);
+    setVal('t-scope', scope);
+    setVal('t-sprint', task.space?.name || task.list?.name || '');
+    setVal('t-url', task.url || '');
+
+    // Store task ID for later subtask creation
+    window._pendingClickUpTaskId = taskId;
+
+    // Map status to type
+    const nameL = task.name.toLowerCase();
+    const typeEl = document.querySelector('input[name="t-type"]:checked') || document.getElementById('tt-feature');
+    if(nameL.includes('bug') || nameL.includes('fix')) {
+      const bugBtn = document.querySelector('.type-btn[data-type="bugfix"]');
+      if(bugBtn) bugBtn.click();
+    }
+
+    // Set priority pill
+    const priSel = document.getElementById('t-priority');
+    if(priSel) priSel.value = normPri;
+
+    status.textContent = '✓ Task imported! ' + (comments.length ? comments.length + ' comments included in scope.' : '');
+    status.style.color = 'var(--green)';
+    document.getElementById('cu-import-panel').style.display = 'none';
+  } catch(e) {
+    status.textContent = '✗ ' + e.message;
+    status.style.color = 'var(--red)';
+  }
+};
+
+async function createClickUpSubtask(token, parentId, bug) {
+  try {
+    // First get the list ID of the parent task
+    const tr = await fetch('https://api.clickup.com/api/v2/task/' + parentId, {
+      headers: { 'Authorization': token }
+    });
+    if(!tr.ok) return null;
+    const task = await tr.json();
+    const listId = task.list?.id;
+    if(!listId) return null;
+
+    const r = await fetch('https://api.clickup.com/api/v2/list/' + listId + '/task', {
+      method: 'POST',
+      headers: { 'Authorization': token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: '[BUG] ' + bug.title,
+        description: 'Error: ' + bug.error + '\n\nSeverity: ' + bug.severity + '\nRun ID: ' + bug.runId + '\nDate: ' + bug.created + '\n\nLogged automatically by QA Pilot.',
+        priority: bug.severity === 'high' ? 2 : 3,
+        parent: parentId,
+        tags: ['qa-pilot', 'bug', bug.severity]
+      })
+    });
+    if(!r.ok) return null;
+    const d = await r.json();
+    return d.id;
+  } catch(e) { return null; }
+}
+
+// ════════════════════════════════════════════════
+// STEP 8: QA SIGN-OFF
+// ════════════════════════════════════════════════
+function step8Signoff(c) {
+  const t = getTicket(), tcs = getTCs(), bugs = getBugs();
+  const rd = calcReadiness(S.selectedTicket);
+  const existing = JSON.parse(localStorage.getItem('qa_signoffs')||'{}')[S.selectedTicket];
+
+  c.innerHTML = `<div class="step-content">
+    <div class="step-header">
+      <div class="step-title">
+        <span style="background:var(--green-bg);color:var(--green-text);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0">8</span>
+        QA Sign-off
+      </div>
+      <div class="step-desc">Final QA approval step. Review the readiness score, add your sign-off comments, conditions, and generate the official sign-off document.</div>
+    </div>
+
+    <!-- READINESS SUMMARY -->
+    <div style="background:${rd.bg};border:2px solid ${rd.color}44;border-radius:var(--radius2);padding:20px;margin-bottom:16px;display:flex;align-items:center;gap:20px">
+      <div style="font-size:48px;line-height:1">${rd.emoji}</div>
+      <div style="flex:1">
+        <div style="font-size:20px;font-weight:800;color:${rd.color}">${rd.verdict}</div>
+        <div style="font-size:13px;color:${rd.color}99;margin-bottom:10px">Current readiness before sign-off</div>
+        <div style="height:8px;background:rgba(255,255,255,.5);border-radius:4px;overflow:hidden;margin-bottom:8px">
+          <div style="width:${rd.score}%;height:100%;background:${rd.color};border-radius:4px"></div>
+        </div>
+        <div style="display:flex;gap:10px;font-size:12px;font-weight:600;color:${rd.color}99">
+          <span>✅ ${rd.pass}/${rd.total} Pass</span>
+          <span>❌ ${rd.fail} Fail</span>
+          <span>🐛 ${rd.openBugs} Open Bugs</span>
+          <span>📊 ${rd.passRate}% Pass Rate</span>
+        </div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:40px;font-weight:800;color:${rd.color};line-height:1">${rd.passRate}%</div>
+        <div style="font-size:11px;color:${rd.color}99">Pass Rate</div>
+      </div>
+    </div>
+
+    <!-- SIGN-OFF FORM -->
+    <div class="card">
+      <div class="card-head">✍ Sign-off Details</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+        <div class="fr"><label>QA Engineer Name *</label>
+          <input id="so-name" type="text" placeholder="Your full name" value="${existing?.name||''}"/></div>
+        <div class="fr"><label>Sign-off Date</label>
+          <input id="so-date" type="date" value="${existing?.date||new Date().toISOString().split('T')[0]}"/></div>
+        <div class="fr"><label>Build / Version</label>
+          <input id="so-version" type="text" placeholder="e.g. v2.1.4 / Sprint 3" value="${existing?.version||t.sprint||''}"/></div>
+        <div class="fr"><label>Environment Tested</label>
+          <input id="so-env" type="text" placeholder="e.g. Staging / UAT" value="${existing?.env||t.url||''}"/></div>
+      </div>
+
+      <div class="fr" style="margin-bottom:12px"><label>Overall QA Verdict *</label>
+        <select id="so-verdict">
+          <option value="approved" ${existing?.verdict==='approved'?'selected':''}>✅ Approved — Ready to Ship</option>
+          <option value="conditional" ${existing?.verdict==='conditional'?'selected':''}>⚠️ Conditional Approval</option>
+          <option value="rejected" ${existing?.verdict==='rejected'?'selected':''}>❌ Rejected — Not Ready</option>
+        </select>
+      </div>
+
+      <div class="fr" style="margin-bottom:12px"><label>Sign-off Comments</label>
+        <textarea id="so-comments" rows="3" placeholder="General comments about the QA process and findings...">${existing?.comments||''}</textarea>
+      </div>
+
+      <div class="fr" style="margin-bottom:12px"><label>Conditions / Outstanding Items <span style="font-size:11px;color:var(--text3)">(required if Conditional)</span></label>
+        <textarea id="so-conditions" rows="3" placeholder="e.g. — Bug #BG003 must be resolved before release&#10;— Re-test payment flow after hotfix&#10;— Performance test needed on prod data">${existing?.conditions||''}</textarea>
+      </div>
+
+      <div class="fr" style="margin-bottom:0"><label>Scope of Testing</label>
+        <textarea id="so-scope" rows="2" placeholder="What was and was not tested...">${existing?.scopeTested||''}</textarea>
+      </div>
+    </div>
+
+    <!-- OPEN BUGS WARNING -->
+    ${rd.openBugs > 0 ? `<div style="background:var(--red-bg);border:1.5px solid var(--red)44;border-radius:var(--radius);padding:14px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:700;color:var(--red-text);margin-bottom:8px">⚠ ${rd.openBugs} Open Bug${rd.openBugs>1?'s':''} Outstanding</div>
+      ${bugs.filter(b=>b.status==='open').map(b=>`<div style="font-size:12.5px;color:var(--red-text);padding:4px 0;border-bottom:1px solid var(--red)22">
+        <span class="tag t-red" style="font-size:10px">${b.severity}</span> ${b.title} — <em>${b.error}</em>
+      </div>`).join('')}
+    </div>` : `<div style="background:var(--green-bg);border:1.5px solid var(--green)44;border-radius:var(--radius);padding:12px;margin-bottom:14px;font-size:13px;font-weight:600;color:var(--green-text)">✅ No open bugs — all issues resolved!</div>`}
+
+    <!-- ACTIONS -->
+    <div class="flex-gap">
+      <button class="btn pri" onclick="saveSignoff()">💾 Save Sign-off</button>
+      <button class="btn success" onclick="downloadSignoff()">⬇ Download Sign-off Document</button>
+      <button class="btn" onclick="printSignoff()">🖨 Print Sign-off</button>
+    </div>
+    <div id="so-status" style="font-size:12.5px;color:var(--green);margin-top:8px;display:none"></div>
+  </div>`;
+}
+
+window.saveSignoff = function() {
+  const signoff = {
+    name: document.getElementById('so-name').value.trim(),
+    date: document.getElementById('so-date').value,
+    version: document.getElementById('so-version').value.trim(),
+    env: document.getElementById('so-env').value.trim(),
+    verdict: document.getElementById('so-verdict').value,
+    comments: document.getElementById('so-comments').value.trim(),
+    conditions: document.getElementById('so-conditions').value.trim(),
+    scopeTested: document.getElementById('so-scope').value.trim(),
+    savedAt: new Date().toISOString()
+  };
+  if(!signoff.name) { alert('Please enter the QA engineer name.'); return; }
+  const all = JSON.parse(localStorage.getItem('qa_signoffs')||'{}');
+  all[S.selectedTicket] = signoff;
+  localStorage.setItem('qa_signoffs', JSON.stringify(all));
+  const st = document.getElementById('so-status');
+  st.style.display = 'block';
+  st.textContent = '✓ Sign-off saved — ' + new Date().toLocaleString();
+};
+
+function buildSignoffHTML() {
+  const t = getTicket(), tcs = getTCs(), bugs = getBugs();
+  const rd = calcReadiness(S.selectedTicket);
+  const so = {
+    name: document.getElementById('so-name').value.trim() || 'QA Engineer',
+    date: document.getElementById('so-date').value,
+    version: document.getElementById('so-version').value.trim(),
+    env: document.getElementById('so-env').value.trim(),
+    verdict: document.getElementById('so-verdict').value,
+    comments: document.getElementById('so-comments').value.trim(),
+    conditions: document.getElementById('so-conditions').value.trim(),
+    scopeTested: document.getElementById('so-scope').value.trim()
+  };
+  const verdictColor = so.verdict==='approved'?'#16A34A':so.verdict==='conditional'?'#D97706':'#DC2626';
+  const verdictLabel = so.verdict==='approved'?'✅ Approved — Ready to Ship':so.verdict==='conditional'?'⚠️ Conditional Approval':'❌ Rejected — Not Ready';
+
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+  <title>QA Sign-off — ${t.title}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;color:#1A1D2E;background:#fff}
+    .page{max-width:860px;margin:0 auto;padding:48px}
+    .header{border-bottom:3px solid ${verdictColor};padding-bottom:20px;margin-bottom:28px;display:flex;justify-content:space-between;align-items:flex-end}
+    h1{font-size:24px;font-weight:800;color:#1A1D2E}
+    h2{font-size:15px;font-weight:700;color:#1A1D2E;margin:24px 0 10px;padding-bottom:6px;border-bottom:1.5px solid #E2E7F0}
+    .verdict-box{background:${verdictColor}15;border:2px solid ${verdictColor};border-radius:10px;padding:20px;text-align:center;margin-bottom:24px}
+    .verdict-label{font-size:22px;font-weight:800;color:${verdictColor}}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+    .field{background:#F4F6FB;border-radius:8px;padding:12px}
+    .field-label{font-size:10px;font-weight:700;color:#8B92B0;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+    .field-val{font-size:14px;font-weight:600;color:#1A1D2E}
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+    .stat{background:#F4F6FB;border-radius:8px;padding:12px;text-align:center;border-bottom:3px solid ${verdictColor}}
+    .stat-val{font-size:24px;font-weight:800;color:${verdictColor}}
+    .stat-label{font-size:10px;color:#8B92B0;font-weight:700;text-transform:uppercase;margin-top:3px}
+    .bar-wrap{height:8px;background:#E2E7F0;border-radius:4px;overflow:hidden;margin-bottom:16px}
+    .bar-fill{height:100%;background:${verdictColor};border-radius:4px}
+    .conditions{background:#FEF3C7;border:1.5px solid #F59E0B;border-radius:8px;padding:14px;margin-bottom:16px}
+    .sig-box{border-top:2px solid #E2E7F0;margin-top:40px;padding-top:20px;display:flex;justify-content:space-between}
+    .sig-line{width:200px;border-top:1.5px solid #1A1D2E;padding-top:6px;font-size:12px;color:#8B92B0}
+    .prose{font-size:13px;color:#4A5175;line-height:1.7;background:#F4F6FB;border-radius:8px;padding:12px;white-space:pre-wrap}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    th{text-align:left;padding:8px 10px;background:#F4F6FB;font-size:10px;font-weight:700;color:#8B92B0;text-transform:uppercase;border-bottom:2px solid #E2E7F0}
+    td{padding:8px 10px;border-bottom:1px solid #E2E7F0;color:#4A5175}
+    .badge{display:inline-block;font-size:10px;padding:2px 7px;border-radius:20px;font-weight:700}
+    .b-green{background:#DCFCE7;color:#15803D}.b-red{background:#FEE2E2;color:#B91C1C}.b-amber{background:#FEF3C7;color:#B45309}.b-gray{background:#F0F3FA;color:#8B92B0}
+    @media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}.page{padding:24px}}
+  </style></head><body><div class="page">
+    <div class="header">
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#8B92B0;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">QA Sign-off Document</div>
+        <h1>${t.title}</h1>
+        <div style="font-size:12px;color:#8B92B0;margin-top:4px">${t.id} · ${t.type} · Priority: ${t.priority}</div>
+      </div>
+      <div style="text-align:right;font-size:12px;color:#8B92B0">
+        <div>${so.date}</div>
+        <div style="margin-top:4px">Generated by QA Pilot</div>
+      </div>
+    </div>
+
+    <div class="verdict-box">
+      <div style="font-size:12px;font-weight:700;color:${verdictColor}99;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">QA Verdict</div>
+      <div class="verdict-label">${verdictLabel}</div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="stat-val">${rd.passRate}%</div><div class="stat-label">Pass Rate</div></div>
+      <div class="stat"><div class="stat-val">${rd.pass}/${rd.total}</div><div class="stat-label">TCs Passed</div></div>
+      <div class="stat"><div class="stat-val">${rd.openBugs}</div><div class="stat-label">Open Bugs</div></div>
+      <div class="stat"><div class="stat-val">${rd.coverage}%</div><div class="stat-label">Coverage</div></div>
+    </div>
+    <div class="bar-wrap"><div class="bar-fill" style="width:${rd.score}%"></div></div>
+
+    <div class="grid">
+      <div class="field"><div class="field-label">QA Engineer</div><div class="field-val">${so.name}</div></div>
+      <div class="field"><div class="field-label">Sign-off Date</div><div class="field-val">${so.date}</div></div>
+      <div class="field"><div class="field-label">Build / Version</div><div class="field-val">${so.version||'—'}</div></div>
+      <div class="field"><div class="field-label">Environment</div><div class="field-val">${so.env||'—'}</div></div>
+    </div>
+
+    ${so.conditions ? `<div class="conditions"><div style="font-size:12px;font-weight:700;color:#B45309;margin-bottom:6px">⚠ Conditions / Outstanding Items</div><div class="prose">${so.conditions}</div></div>` : ''}
+    ${so.comments ? `<h2>Sign-off Comments</h2><div class="prose">${so.comments}</div>` : ''}
+    ${so.scopeTested ? `<h2>Scope of Testing</h2><div class="prose">${so.scopeTested}</div>` : ''}
+
+    <h2>Test Results Summary</h2>
+    <table><thead><tr><th>#</th><th>Test Case</th><th>Category</th><th>Status</th><th>Priority</th></tr></thead>
+    <tbody>${tcs.map((tc,i)=>`<tr>
+      <td style="color:#8B92B0;font-size:11px">${i+1}</td>
+      <td style="font-weight:500;max-width:300px">${tc.description}</td>
+      <td><span class="badge b-gray">${tc.category||'Functional'}</span></td>
+      <td><span class="badge ${tc.status==='pass'?'b-green':tc.status==='fail'?'b-red':'b-amber'}">${tc.status==='pass'?'✓ Pass':tc.status==='fail'?'✗ Fail':tc.status==='skip'?'Skip':'Pending'}</span></td>
+      <td><span class="badge ${tc.priority==='high'?'b-red':tc.priority==='medium'?'b-amber':'b-green'}">${tc.priority}</span></td>
+    </tr>`).join('')}</tbody></table>
+
+    ${bugs.length>0 ? `<h2>Bug Report</h2>
+    <table><thead><tr><th>Bug ID</th><th>Title</th><th>Error</th><th>Severity</th><th>Status</th></tr></thead>
+    <tbody>${bugs.map(b=>`<tr>
+      <td style="font-family:monospace;font-size:10px;color:#8B92B0">${b.id}</td>
+      <td style="font-weight:500;max-width:220px">${b.title}</td>
+      <td style="max-width:200px;color:#4A5175">${b.error}</td>
+      <td><span class="badge ${b.severity==='high'?'b-red':b.severity==='medium'?'b-amber':'b-green'}">${b.severity}</span></td>
+      <td><span class="badge ${b.status==='resolved'?'b-green':'b-red'}">${b.status}</span></td>
+    </tr>`).join('')}</tbody></table>` : ''}
+
+    <div class="sig-box">
+      <div>
+        <div class="sig-line">${so.name}</div>
+        <div style="font-size:11px;color:#8B92B0;margin-top:4px">QA Engineer</div>
+      </div>
+      <div>
+        <div class="sig-line">${so.date}</div>
+        <div style="font-size:11px;color:#8B92B0;margin-top:4px">Date</div>
+      </div>
+      <div>
+        <div class="sig-line">&nbsp;</div>
+        <div style="font-size:11px;color:#8B92B0;margin-top:4px">Approver Signature</div>
+      </div>
+    </div>
+    <div style="margin-top:24px;font-size:11px;color:#8B92B0;text-align:center;padding-top:12px;border-top:1px solid #E2E7F0">
+      Generated by QA Pilot · ${new Date().toLocaleString()} · ${t.id}: ${t.title}
+    </div>
+  </div></body></html>`;
+}
+
+window.downloadSignoff = function() {
+  const t = getTicket(); if(!t) return;
+  saveSignoff();
+  const html = buildSignoffHTML();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([html], {type:'text/html'}));
+  a.download = 'QA-Signoff-' + t.id + '-' + t.title.replace(/[^a-z0-9]/gi,'-').slice(0,25) + '.html';
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+
+window.printSignoff = function() {
+  saveSignoff();
+  const win = window.open('','_blank');
+  win.document.write(buildSignoffHTML());
+  win.document.close();
+  setTimeout(()=>win.print(), 600);
+};
+
 </script>
 </body>
 </html>
