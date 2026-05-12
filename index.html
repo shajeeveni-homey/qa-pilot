@@ -2224,28 +2224,29 @@ window.testClickUpToken = async function() {
   const hint = document.getElementById('cu-key-hint');
   if(!k){ hint.textContent = '✗ No token saved'; hint.style.color='var(--red)'; return; }
   hint.textContent = '⟳ Testing connection...'; hint.style.color='var(--text3)';
+  const testUrl = 'https://api.clickup.com/api/v2/user';
+  async function tryFetch(url) {
+    return await fetch(url, { headers: { 'Authorization': k } });
+  }
   try {
-    const r = await fetch('https://api.clickup.com/api/v2/user', {
-      headers: { 'Authorization': k }
-    });
+    let r;
+    try { r = await tryFetch(testUrl); }
+    catch(e) { r = await tryFetch('https://corsproxy.io/?' + encodeURIComponent(testUrl)); }
+
     if(r.ok){
       const d = await r.json();
       hint.textContent = '✓ Connected as: ' + (d.user?.username || d.user?.email || 'verified');
       hint.style.color = 'var(--green)';
     } else if(r.status === 401){
-      hint.textContent = '✗ 401 Invalid token — copy again from ClickUp → Settings → ClickUp API';
+      hint.textContent = '✗ 401 — Token rejected. Copy fresh from ClickUp → Settings → ClickUp API';
       hint.style.color = 'var(--red)';
     } else {
-      hint.textContent = '✗ Error ' + r.status;
+      hint.textContent = '✗ HTTP ' + r.status;
       hint.style.color = 'var(--red)';
     }
   } catch(e) {
-    if(e.message.includes('CORS') || e.message.includes('fetch') || e.message.includes('network')) {
-      hint.textContent = '⚠ CORS blocked — ClickUp API cannot be called directly from browser. Use manual entry below.';
-    } else {
-      hint.textContent = '✗ ' + e.message;
-    }
-    hint.style.color = 'var(--amber)';
+    hint.textContent = '✗ Network error — check internet connection';
+    hint.style.color = 'var(--red)';
   }
 };
 window.saveClickUpKey = function() {
@@ -2322,13 +2323,24 @@ window.importFromClickUp = async function() {
   if(teamId) localStorage.setItem('qa_cu_team', teamId);
 
   try {
-    let url = 'https://api.clickup.com/api/v2/task/' + taskId;
-    if(isCustomId && teamId) url += '?custom_task_ids=true&team_id=' + teamId;
-    else if(isCustomId) url += '?custom_task_ids=true';
+    let apiUrl = 'https://api.clickup.com/api/v2/task/' + taskId;
+    if(isCustomId && teamId) apiUrl += '?custom_task_ids=true&team_id=' + teamId;
+    else if(isCustomId) apiUrl += '?custom_task_ids=true';
 
-    const res = await fetch(url, {
-      headers: { 'Authorization': cuToken, 'Content-Type': 'application/json' }
-    });
+    // Try direct first, fallback to CORS proxy
+    let res, usedProxy = false;
+    try {
+      res = await fetch(apiUrl, {
+        headers: { 'Authorization': cuToken, 'Content-Type': 'application/json' }
+      });
+    } catch(corsErr) {
+      // Direct call blocked — try via CORS proxy
+      usedProxy = true;
+      const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(apiUrl);
+      res = await fetch(proxyUrl, {
+        headers: { 'Authorization': cuToken, 'Content-Type': 'application/json' }
+      });
+    }
 
     if(res.status === 401){
       showManualFallback('401 — Token rejected. Click "Test" in the sidebar to verify your token.');
@@ -2351,7 +2363,8 @@ window.importFromClickUp = async function() {
     // Also fetch comments
     let comments = [];
     try {
-      const cr = await fetch('https://api.clickup.com/api/v2/task/' + taskId + '/comment', {
+      const commentUrl = 'https://api.clickup.com/api/v2/task/' + taskId + '/comment';
+      const cr = await fetch(usedProxy ? 'https://corsproxy.io/?' + encodeURIComponent(commentUrl) : commentUrl, {
         headers: { 'Authorization': cuToken }
       });
       if(cr.ok) {
@@ -2416,15 +2429,21 @@ function showManualFallback(reason) {
 async function createClickUpSubtask(token, parentId, bug) {
   try {
     // First get the list ID of the parent task
-    const tr = await fetch('https://api.clickup.com/api/v2/task/' + parentId, {
-      headers: { 'Authorization': token }
-    });
+    const taskApiUrl = 'https://api.clickup.com/api/v2/task/' + parentId;
+    async function cuFetch(url, opts={}) {
+      try { return await fetch(url, opts); }
+      catch(e) {
+        const proxied = 'https://corsproxy.io/?' + encodeURIComponent(url);
+        return await fetch(proxied, opts);
+      }
+    }
+    const tr = await cuFetch(taskApiUrl, { headers: { 'Authorization': token } });
     if(!tr.ok) return null;
     const task = await tr.json();
     const listId = task.list?.id;
     if(!listId) return null;
 
-    const r = await fetch('https://api.clickup.com/api/v2/list/' + listId + '/task', {
+    const r = await cuFetch('https://api.clickup.com/api/v2/list/' + listId + '/task', {
       method: 'POST',
       headers: { 'Authorization': token, 'Content-Type': 'application/json' },
       body: JSON.stringify({
