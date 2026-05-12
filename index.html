@@ -2383,30 +2383,33 @@ window.importFromClickUp = async function() {
     const commentText = comments.length ? '\n\nComments:\n' + comments.join('\n') : '';
     const scope = (desc + commentText).trim() || task.name;
 
-    // Fill in the form fields
-    const setVal = (id, val) => { const el = document.getElementById(id); if(el) el.value = val; };
-    setVal('t-title', task.name);
-    setVal('t-scope', scope);
-    setVal('t-sprint', task.space?.name || task.list?.name || '');
-    setVal('t-url', task.url || '');
+    // Fill in the form fields (tk- prefix = new ticket form IDs)
+    const setVal = (id, val) => { const el = document.getElementById(id); if(el && val) el.value = val; };
+    setVal('tk-title', task.name);
+    setVal('tk-scope', scope);
+    setVal('tk-sprint', task.space?.name || task.list?.name || '');
+    setVal('tk-url', task.url || '');
 
-    // Store task ID for later subtask creation
+    // Store ClickUp task ID for subtask creation later
     window._pendingClickUpTaskId = taskId;
 
-    // Map status to type
+    // Auto-select ticket type based on task name
     const nameL = task.name.toLowerCase();
-    const typeEl = document.querySelector('input[name="t-type"]:checked') || document.getElementById('tt-feature');
-    if(nameL.includes('bug') || nameL.includes('fix')) {
-      const bugBtn = document.querySelector('.type-btn[data-type="bugfix"]');
-      if(bugBtn) bugBtn.click();
+    if(nameL.includes('bug') || nameL.includes('fix') || nameL.includes('defect')) {
+      const bugBtn = document.querySelector('.tp-card[data-type="bugfix"]');
+      if(bugBtn) { document.querySelectorAll('.tp-card').forEach(b=>b.classList.remove('on')); bugBtn.classList.add('on'); window._newTicketType='bugfix'; }
+    } else if(nameL.includes('improve') || nameL.includes('enhance') || nameL.includes('update')) {
+      const impBtn = document.querySelector('.tp-card[data-type="improvement"]');
+      if(impBtn) { document.querySelectorAll('.tp-card').forEach(b=>b.classList.remove('on')); impBtn.classList.add('on'); window._newTicketType='improvement'; }
     }
 
-    // Set priority pill
-    const priSel = document.getElementById('t-priority');
+    // Set priority
+    const priSel = document.getElementById('tk-priority');
     if(priSel) priSel.value = normPri;
 
-    status.textContent = '✓ Task imported! ' + (comments.length ? comments.length + ' comments included in scope.' : '');
-    status.style.color = 'var(--green)';
+    status.innerHTML = '<span style="color:var(--green-text);font-weight:700">✓ Task imported!</span> ' +
+      task.name + (comments.length ? ' · ' + comments.length + ' comments added to scope' : '') +
+      '<br><span style="font-size:11.5px;color:var(--text3)">Review the fields below then click Create Ticket & Start Pipeline</span>';
     document.getElementById('cu-import-panel').style.display = 'none';
   } catch(e) {
     if(e.message && (e.message.includes('Failed to fetch') || e.message.includes('NetworkError') || e.message.includes('CORS'))) {
