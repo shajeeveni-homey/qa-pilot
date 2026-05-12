@@ -216,10 +216,11 @@ tr:hover td{background:var(--bg3);color:var(--text)}
     </div>
     <div class="key-section" style="margin-top:8px">
       <div class="key-label" style="color:#7B68EE">🔗 ClickUp API Token <span style="font-size:9px;background:#EDE9FE;color:#6D28D9;padding:1px 5px;border-radius:8px;margin-left:4px">optional</span></div>
-      <div class="key-wrap">
-        <input type="password" id="clickup-key" placeholder="pk_..." autocomplete="off" oninput="saveClickUpKey()" style="border-color:#7B68EE44"/>
+      <div class="key-wrap" style="display:flex;gap:4px">
+        <input type="password" id="clickup-key" placeholder="pk_..." autocomplete="off" oninput="saveClickUpKey()" style="border-color:#7B68EE44;flex:1"/>
+        <button onclick="testClickUpToken()" style="background:#7B68EE;color:#fff;border:none;border-radius:6px;padding:0 8px;font-size:11px;cursor:pointer;white-space:nowrap;flex-shrink:0">Test</button>
       </div>
-      <div class="key-hint muted" id="cu-key-hint">Get token: ClickUp → Settings → Apps → API Token (pk_...)</div>
+      <div class="key-hint muted" id="cu-key-hint">Get token: ClickUp → Settings → ClickUp API → Copy</div>
     </div>
     <!-- MODEL -->
     <div class="model-section">
@@ -2217,12 +2218,48 @@ window.showClickUpImport = function() {
   const p = document.getElementById('cu-import-panel');
   if(p) p.style.display = p.style.display === 'none' ? 'block' : 'none';
 };
+
+window.testClickUpToken = async function() {
+  const k = localStorage.getItem('qa_cu_key') || document.getElementById('clickup-key').value.trim();
+  const hint = document.getElementById('cu-key-hint');
+  if(!k){ hint.textContent = '✗ No token saved'; hint.style.color='var(--red)'; return; }
+  hint.textContent = '⟳ Testing connection...'; hint.style.color='var(--text3)';
+  try {
+    const r = await fetch('https://api.clickup.com/api/v2/user', {
+      headers: { 'Authorization': k }
+    });
+    if(r.ok){
+      const d = await r.json();
+      hint.textContent = '✓ Connected as: ' + (d.user?.username || d.user?.email || 'verified');
+      hint.style.color = 'var(--green)';
+    } else if(r.status === 401){
+      hint.textContent = '✗ 401 Invalid token — copy again from ClickUp → Settings → ClickUp API';
+      hint.style.color = 'var(--red)';
+    } else {
+      hint.textContent = '✗ Error ' + r.status;
+      hint.style.color = 'var(--red)';
+    }
+  } catch(e) {
+    if(e.message.includes('CORS') || e.message.includes('fetch') || e.message.includes('network')) {
+      hint.textContent = '⚠ CORS blocked — ClickUp API cannot be called directly from browser. Use manual entry below.';
+    } else {
+      hint.textContent = '✗ ' + e.message;
+    }
+    hint.style.color = 'var(--amber)';
+  }
+};
 window.saveClickUpKey = function() {
-  const k = document.getElementById('clickup-key').value.trim();
+  const k = document.getElementById('clickup-key').value.trim().replace(/\s+/g,'');
+  document.getElementById('clickup-key').value = k;
   try { localStorage.setItem('qa_cu_key', k); } catch(e) {}
   const hint = document.getElementById('cu-key-hint');
-  if(hint) hint.textContent = k ? '✓ ClickUp token saved' : 'Enables: import tickets, auto-log bugs as subtasks';
-  if(hint) hint.style.color = k ? 'var(--green)' : '';
+  if(k && k.startsWith('pk_') && k.length > 20) {
+    if(hint){ hint.textContent = '✓ Token saved — click "Test" to verify'; hint.style.color='var(--green)'; }
+  } else if(k) {
+    if(hint){ hint.textContent = '⚠ Should start with pk_...'; hint.style.color='var(--amber)'; }
+  } else {
+    if(hint){ hint.textContent = 'Get token: ClickUp → Settings → ClickUp API → Copy'; hint.style.color=''; }
+  }
 };
 
 function loadClickUpKey() {
@@ -2293,9 +2330,22 @@ window.importFromClickUp = async function() {
       headers: { 'Authorization': cuToken, 'Content-Type': 'application/json' }
     });
 
-    if(res.status === 401) throw new Error('HTTP 401 — Invalid API token. Get your token from ClickUp → Settings → Apps → API Token (starts with pk_)');
-    if(res.status === 404) throw new Error('HTTP 404 — Task not found. Check the task ID or URL.');
-    if(!res.ok) throw new Error('HTTP ' + res.status + ' — ' + (await res.text()).slice(0,100));
+    if(res.status === 401){
+      showManualFallback('401 — Token rejected. Click "Test" in the sidebar to verify your token.');
+      return;
+    }
+    if(res.status === 403){
+      showManualFallback('403 — No permission to access this task. Check the token belongs to a member of this workspace.');
+      return;
+    }
+    if(res.status === 404){
+      showManualFallback('404 — Task not found. The ID may be wrong or the task may be private.');
+      return;
+    }
+    if(!res.ok){
+      showManualFallback('HTTP ' + res.status + ' error from ClickUp API.');
+      return;
+    }
     const task = await res.json();
 
     // Also fetch comments
@@ -2346,10 +2396,22 @@ window.importFromClickUp = async function() {
     status.style.color = 'var(--green)';
     document.getElementById('cu-import-panel').style.display = 'none';
   } catch(e) {
-    status.textContent = '✗ ' + e.message;
-    status.style.color = 'var(--red)';
+    if(e.message && (e.message.includes('Failed to fetch') || e.message.includes('NetworkError') || e.message.includes('CORS'))) {
+      showManualFallback('Browser CORS restriction — ClickUp API cannot be called directly from this page. Fill in details manually below.');
+    } else {
+      showManualFallback(e.message || 'Unknown error');
+    }
   }
 };
+
+function showManualFallback(reason) {
+  const status = document.getElementById('cu-import-status');
+  if(status) {
+    status.innerHTML = '<span style="color:var(--amber-text)">⚠ Auto-import failed: ' + reason + '</span><br/>' +
+      '<span style="font-size:11.5px;color:var(--text3)">Fill in the ticket details manually below instead.</span>';
+  }
+  document.getElementById('cu-import-panel').style.display = 'none';
+}
 
 async function createClickUpSubtask(token, parentId, bug) {
   try {
