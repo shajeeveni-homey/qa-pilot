@@ -1701,45 +1701,114 @@ window.simulateTestRun = async function() {
 // ── STEP 6: BUGS ──
 function step6Bugs(c) {
   const bugs = getBugs();
+  const tcs = getTCs();
+  const failedTCs = tcs.filter(tc => tc.status === 'fail');
   const open = bugs.filter(b=>b.status==='open').length;
   const resolved = bugs.filter(b=>b.status==='resolved').length;
+  const high = bugs.filter(b=>b.severity==='high').length;
+
+  // Build a map: bug title → matched TC (for linking)
+  const matchTC = (bug) => tcs.find(tc =>
+    tc.description === bug.title || tc.description === bug.step ||
+    (bug.title && tc.description && tc.description.toLowerCase().includes(bug.title.toLowerCase().slice(0,30)))
+  );
+
   c.innerHTML = `<div class="step-content">
     <div class="step-header">
       <div class="step-title"><span style="background:var(--red-bg);color:var(--red-text);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0">6</span> Bug Tracker</div>
-      <div class="step-desc">Bugs automatically logged from test runs. Update severity and status as you fix them.</div>
+      <div class="step-desc">Bugs auto-logged from failed test cases. Each bug is linked to its test case showing expected vs actual result.</div>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px">
+
+    <!-- STATS -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
       <div class="stat s-red"><div class="stat-label">Total Bugs</div><div class="stat-val red">${bugs.length}</div></div>
       <div class="stat s-amber"><div class="stat-label">Open</div><div class="stat-val amber">${open}</div></div>
       <div class="stat s-green"><div class="stat-label">Resolved</div><div class="stat-val green">${resolved}</div></div>
+      <div class="stat s-red"><div class="stat-label">High Severity</div><div class="stat-val red">${high}</div></div>
     </div>
-    ${bugs.length===0?`<div class="empty"><div class="empty-ico">🐛</div><p>No bugs yet. Run tests in Step 5 to auto-discover bugs.</p></div>`:`
+
+    ${bugs.length===0 ? `<div class="empty"><div class="empty-ico">🐛</div><p>No bugs yet. Run tests in Step 5 to auto-discover bugs.</p></div>` : `
+
+    <!-- FAILED TEST CASES WITH ACTUAL RESULTS -->
+    ${failedTCs.length > 0 ? `
+    <div class="card" style="border-left:4px solid var(--red);margin-bottom:14px">
+      <div class="card-head" style="color:var(--red-text)">
+        ❌ Failed Test Cases — Actual Results
+        <span style="font-size:11px;background:var(--red-bg);color:var(--red-text);padding:2px 8px;border-radius:20px;font-weight:700">${failedTCs.length} failed</span>
+      </div>
+      <div class="tw"><table>
+        <thead><tr><th>TC ID</th><th>Test Case Description</th><th>Expected Result</th><th>Actual Result</th><th>Priority</th></tr></thead>
+        <tbody>${failedTCs.map(tc => `<tr style="background:var(--red-bg)11">
+          <td class="mono" style="color:var(--red-text);font-size:10px">${tc.id}</td>
+          <td style="font-size:13px;font-weight:600;color:var(--text);max-width:220px">${tc.description}</td>
+          <td style="font-size:12px;color:var(--text2);max-width:180px">${tc.expected||'As described'}</td>
+          <td style="font-size:12px;color:var(--red-text);font-weight:500;max-width:180px">${tc.actual||'Not recorded'}</td>
+          <td><span class="tag ${tc.priority==='high'?'t-red':tc.priority==='medium'?'t-amber':'t-green'}">${tc.priority}</span></td>
+        </tr>`).join('')}
+        </tbody>
+      </table></div>
+    </div>` : ''}
+
+    <!-- BUG LIST WITH TC EVIDENCE -->
     <div class="card">
-      <div class="card-head">Bugs for this Ticket <button class="btn xs" onclick="addManualBug()">+ Log Manual</button></div>
-      <div class="tw"><table><thead><tr><th>Bug ID</th><th>Test Case / Step</th><th>Error</th><th>Severity</th><th>Status</th><th>Found</th></tr></thead>
-      <tbody>${bugs.map((b,i)=>{
+      <div class="card-head">
+        🐛 Bug Report
+        <button class="btn xs" onclick="addManualBug()">+ Log Manual</button>
+      </div>
+      ${bugs.map((b,i) => {
         const gi = S.bugs.findIndex(x=>x.id===b.id);
-        return `<tr>
-          <td class="mono">${b.id}</td>
-          <td style="max-width:200px;font-size:13px;color:var(--text);font-weight:500">${b.title||b.step||'—'}</td>
-          <td style="max-width:180px;font-size:12px;color:var(--text2)">${b.error||'—'}</td>
-          <td><select style="font-size:12px;padding:4px 7px;border:1.5px solid var(--border2);border-radius:6px;background:#fff" onchange="S.bugs[${gi}].severity=this.value;save()">
-            <option value="high" ${b.severity==='high'?'selected':''}>🔴 High</option>
-            <option value="medium" ${b.severity==='medium'?'selected':''}>🟡 Medium</option>
-            <option value="low" ${b.severity==='low'?'selected':''}>🟢 Low</option>
-          </select></td>
-          <td><select style="font-size:12px;padding:4px 7px;border:1.5px solid var(--border2);border-radius:6px;background:#fff" onchange="S.bugs[${gi}].status=this.value;save()">
-            <option value="open" ${b.status==='open'?'selected':''}>Open</option>
-            <option value="in-progress" ${b.status==='in-progress'?'selected':''}>In Progress</option>
-            <option value="resolved" ${b.status==='resolved'?'selected':''}>Resolved</option>
-            <option value="wont-fix" ${b.status==='wont-fix'?'selected':''}>Won't Fix</option>
-          </select></td>
-          <td style="font-size:12px;color:var(--text3)">${b.created}</td>
-        </tr>`;
-      }).join('')}</tbody></table></div>
+        const tc = matchTC(b);
+        return `<div style="border:1.5px solid ${b.severity==='high'?'var(--red)':b.severity==='medium'?'var(--amber)':'var(--border2)'};border-radius:var(--radius2);padding:14px 16px;margin-bottom:10px;background:${b.status==='resolved'?'var(--green-bg)':'var(--bg2)'}">
+          <!-- BUG HEADER -->
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px">
+            <div style="flex:1">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
+                <span class="mono" style="font-size:10px;color:var(--text3)">${b.id}</span>
+                <span style="font-size:13px;font-weight:700;color:var(--text)">${b.title||b.step||'Unknown'}</span>
+              </div>
+              <div style="font-size:12.5px;color:var(--red-text);background:var(--red-bg);padding:5px 10px;border-radius:6px;display:inline-block">
+                ✗ ${b.error||'Test failed'}
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;flex-shrink:0;align-items:center">
+              <select style="font-size:11px;padding:4px 6px;border:1.5px solid var(--border2);border-radius:6px;background:#fff" onchange="S.bugs[${gi}].severity=this.value;save();step6Bugs(document.getElementById('content'))">
+                <option value="high" ${b.severity==='high'?'selected':''}>🔴 High</option>
+                <option value="medium" ${b.severity==='medium'?'selected':''}>🟡 Medium</option>
+                <option value="low" ${b.severity==='low'?'selected':''}>🟢 Low</option>
+              </select>
+              <select style="font-size:11px;padding:4px 6px;border:1.5px solid var(--border2);border-radius:6px;background:#fff" onchange="S.bugs[${gi}].status=this.value;save();step6Bugs(document.getElementById('content'))">
+                <option value="open" ${b.status==='open'?'selected':''}>Open</option>
+                <option value="in-progress" ${b.status==='in-progress'?'selected':''}>In Progress</option>
+                <option value="resolved" ${b.status==='resolved'?'selected':''}>Resolved</option>
+                <option value="wont-fix" ${b.status==='wont-fix'?'selected':''}>Won't Fix</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- LINKED TEST CASE EVIDENCE -->
+          ${tc ? `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;font-size:12px">
+            <div style="font-size:10.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">📋 Test Case Evidence — ${tc.id}</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <div>
+                <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:3px">EXPECTED</div>
+                <div style="color:var(--text2);line-height:1.5">${tc.expected||'As described'}</div>
+              </div>
+              <div>
+                <div style="font-size:10px;font-weight:700;color:var(--red-text);margin-bottom:3px">ACTUAL (FAILED)</div>
+                <div style="color:var(--red-text);font-weight:500;line-height:1.5">${tc.actual||b.error||'Test failed'}</div>
+              </div>
+            </div>
+            ${tc.steps && tc.steps !== 'Manually defined test case' ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+              <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:3px">STEPS TO REPRODUCE</div>
+              <div style="color:var(--text2);font-size:12px;white-space:pre-wrap;line-height:1.6">${tc.steps}</div>
+            </div>` : ''}
+          </div>` : `<div style="font-size:12px;color:var(--text3);font-style:italic">Logged: ${b.created}${b.runId?' · Run: '+b.runId:''}</div>`}
+        </div>`;
+      }).join('')}
     </div>`}
+
     <div class="next-step-banner" style="margin-top:${bugs.length?'0':'14px'}">
-      <div class="next-step-text"><strong>Step 7: Generate QA Report</strong>AI will compile everything — ticket, test cases, run results and bugs — into a professional QA report.</div>
+      <div class="next-step-text"><strong>Step 7: Generate QA Report</strong>AI will compile everything — test cases, actual results, bugs and evidence — into a professional QA report.</div>
       <button class="btn next" onclick="goStep(7)">Generate Report →</button>
     </div>
   </div>`;
