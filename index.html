@@ -1137,6 +1137,9 @@ window.generateTestCases = async function() {
   document.getElementById('tc-status').textContent = 'Generating comprehensive test cases...';
   document.getElementById('tc-gen-btn').disabled = true;
   try {
+    // Sanitize scope to remove control chars that break JSON responses
+    const safeScope = (t.scope||t.title||'').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g,'').replace(/\r/g,'').slice(0,1500);
+
     const raw = await ai(`You are a senior QA engineer. Generate EXHAUSTIVE test cases for this ticket.
 Return ONLY a valid JSON array. No markdown, no code fences, no explanation.
 Format: [{"description":"...","steps":"1. Step\n2. Step","expected":"Expected result","priority":"high|medium|low","category":"Functional|Negative|Edge|Boundary|Security|Performance|UI/UX|Accessibility|API"}]
@@ -1194,20 +1197,28 @@ API (if applicable):
 
 Ticket: ${t.title}
 Type: ${t.type} | Priority: ${t.priority}
-Scope: ${t.scope || t.title}
+Scope: ${safeScope}
 Environment: ${t.url || 'web application'}${ksNotes}
 
 Remember: Return ONLY the JSON array, starting with [ and ending with ]`);
 
     let arr = [];
     try {
-      const clean = raw.replace(/```json|```/g,'').trim();
+      let clean = raw.replace(/```json|```/g,'').trim();
+      clean = clean.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,'');
       arr = JSON.parse(clean);
-    } catch(e) {
-      const m = raw.match(/\[[\s\S]*\]/);
-      if(m) arr = JSON.parse(m[0]);
+    } catch(e1) {
+      try {
+        const m = raw.match(/\[([\s\S]*?)\](?=[^\[]*$)/);
+        if(m) arr = JSON.parse(('[' + m[1] + ']').replace(/[\x00-\x1F\x7F]/g,' '));
+      } catch(e2) {
+        try {
+          const fixed = raw.replace(/```json|```/g,'').replace(/,\s*([}\]])/g,'$1').replace(/[\x00-\x1F\x7F]/g,' ').trim();
+          const m2 = fixed.match(/\[[\s\S]*\]/);
+          if(m2) arr = JSON.parse(m2[0]);
+        } catch(e3) { throw new Error('JSON parse failed. Check Groq key and try again.'); }
+      }
     }
-    const existing = getTCs().length;
     arr.forEach(tc => {
       S.testCases.push({
         id: uid('TC'), ticketId: S.selectedTicket,
@@ -1295,13 +1306,14 @@ window.suggestMissingTCs = async function() {
   
   try {
     const existing = tcs.map((tc,i)=>`${i+1}. [${tc.category||'Functional'}] ${tc.description}`).join('\n');
+    const safeScope2 = (t.scope||t.title||''). replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,'').slice(0,800);
     const raw = await ai(`You are a senior QA engineer reviewing test coverage gaps.
 
 EXISTING TEST CASES (${tcs.length} total):
 ${existing}
 
 TICKET: ${t.title}
-Scope: ${t.scope || t.title}
+Scope: ${safeScope2}
 ${feedback ? 'USER FOCUS REQUEST: ' + feedback : ''}${ksNotes}
 
 Identify what is MISSING from the existing test cases above and generate ONLY new, non-duplicate test cases.
